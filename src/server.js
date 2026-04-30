@@ -86,12 +86,21 @@ app.use(
 app.use("/auth", authRoutes);
 app.use("/api", apiRoutes);
 
+// Archivos estáticos: CSS, JS, assets, imágenes.
+app.use(express.static(path.join(__dirname, "../public")));
+
+// Redirects para no usar .html.
 app.get("/vote.html", (_req, res) => {
   res.redirect("/vote");
 });
 
 app.get("/admin.html", (_req, res) => {
   res.redirect("/admin");
+});
+
+// Rutas limpias.
+app.get("/", (_req, res) => {
+  res.sendFile(path.join(__dirname, "../public/index.html"));
 });
 
 app.get("/vote", (_req, res) => {
@@ -102,21 +111,14 @@ app.get("/admin", (_req, res) => {
   res.sendFile(path.join(__dirname, "../public/admin.html"));
 });
 
-
-app.get("*", (_req, res) => {
-  res.sendFile(path.join(__dirname, "../public/index.html"));
-});
-
-app.use(express.static(path.join(__dirname, "../public")));
-
-app.get('/', (_req, res) => {
-  res.sendFile(path.join(__dirname, '../public/index.html'));
-});
-
 app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
 
+// Fallback final.
+app.get("*", (_req, res) => {
+  res.sendFile(path.join(__dirname, "../public/index.html"));
+});
 
 app.listen(env.PORT, () => {
   console.log(`Servidor listo en ${env.APP_URL}`);
