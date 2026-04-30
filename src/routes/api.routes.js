@@ -65,10 +65,15 @@ router.get("/active-plate", async (_req, res) => {
   return res.json({ plate });
 });
 
+
+// /my-vote-status
 router.get("/my-vote-status", async (req, res) => {
   const activePlate = await prisma.plate.findFirst({
     where: { status: "ACTIVE" },
-    select: { id: true },
+    select: {
+      id: true,
+      maxVotesPerIp: true,
+    },
     orderBy: { createdAt: "desc" },
   });
 
@@ -76,23 +81,30 @@ router.get("/my-vote-status", async (req, res) => {
     return res.json({
       hasVoted: false,
       plateId: null,
+      voteCount: 0,
+      maxVotesPerIp: 0,
+      remainingVotes: 0,
     });
   }
 
   const clientIp = getClientIp(req);
   const voterIpHash = hashIp(clientIp);
 
-  const ipVoteCount = await prisma.vote.count({
+  const voteCount = await prisma.vote.count({
     where: {
       plateId: activePlate.id,
       voterIpHash,
     },
   });
 
+  const remainingVotes = Math.max(activePlate.maxVotesPerIp - voteCount, 0);
+
   return res.json({
-    hasVoted: ipVoteCount > 0,
-    voteCount: ipVoteCount,
+    hasVoted: remainingVotes <= 0,
     plateId: activePlate.id,
+    voteCount,
+    maxVotesPerIp: activePlate.maxVotesPerIp,
+    remainingVotes,
   });
 });
 
@@ -156,9 +168,13 @@ router.post("/vote", voteLimiter, async (req, res) => {
       },
     });
 
+    const remainingVotes = Math.max(activePlate.maxVotesPerIp - (ipVoteCount + 1), 0);
+
     return res.status(201).json({
       success: true,
       voteId: vote.id,
+      message: "Voto contabilizado.",
+      remainingVotes,
     });
   } catch (error) {
     console.error(error);

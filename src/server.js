@@ -100,7 +100,7 @@ app.get("/admin.html", (_req, res) => {
 
 // Rutas limpias.
 app.get("/", (_req, res) => {
-  res.sendFile(path.join(__dirname, "../public/index.html"));
+  res.sendFile(path.join(__dirname, "/vote"));
 });
 
 app.get("/vote", (_req, res) => {

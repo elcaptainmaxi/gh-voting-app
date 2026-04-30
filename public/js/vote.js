@@ -155,16 +155,18 @@ function renderVoteStatus() {
   if (!state.plate) return;
 
   if (state.plate.status === "PAUSED") {
-    setBanner(
-      "La placa está pausada en este momento. No se puede votar hasta que vuelva a activarse.",
-      "error"
-    );
+    setBanner("La placa está pausada en este momento. No se puede votar hasta que vuelva a activarse.", "error");
     return;
   }
 
-  if (state.voteStatus?.hasVoted) {
-    setBanner("Ya se registró un voto desde esta conexión.");
+  const remainingVotes = Number(state.voteStatus?.remainingVotes || 0);
+
+  if (remainingVotes > 0) {
+    setBanner(`${remainingVotes} votos disponibles en esta placa.`);
+    return;
   }
+
+  setBanner("Ya alcanzaste el máximo de votos disponibles desde esta conexión.", "error");
 }
 
 async function loadPlateAndStatus() {
@@ -215,7 +217,12 @@ async function submitVote() {
       }),
     });
 
-    state.voteStatus = { hasVoted: true };
+    state.voteStatus = {
+      ...state.voteStatus,
+      remainingVotes: Number(result.remainingVotes || 0),
+      hasVoted: Number(result.remainingVotes || 0) <= 0,
+    };
+    setBanner("Voto contabilizado.", "success");
     renderPlate();
     renderVoteStatus();
     closeModal();
