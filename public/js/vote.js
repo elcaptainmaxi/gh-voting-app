@@ -1,16 +1,9 @@
 const state = {
-  csrfToken: null,
-  user: null,
   plate: null,
   voteStatus: null,
   selectedNominee: null,
   submitting: false,
 };
-
-const userNameEl = document.getElementById("userName");
-const userAvatarEl = document.getElementById("userAvatar");
-const adminLinkEl = document.getElementById("adminLink");
-const logoutBtn = document.getElementById("logoutBtn");
 
 const plateNoticeSection = document.getElementById("plateNoticeSection");
 const voteStatusBanner = document.getElementById("voteStatusBanner");
@@ -32,7 +25,6 @@ async function api(path, options = {}) {
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      ...(state.csrfToken ? { "x-csrf-token": state.csrfToken } : {}),
       ...(options.headers || {}),
     },
     ...options,
@@ -55,22 +47,20 @@ async function api(path, options = {}) {
 }
 
 function setBanner(message, type = "success") {
-  plateNoticeSection.classList.remove("hidden");
+  plateNoticeSection?.classList.remove("hidden");
   voteStatusBanner.textContent = message;
   voteStatusBanner.classList.remove("hidden", "error");
-  if (type === "error") voteStatusBanner.classList.add("error");
+
+  if (type === "error") {
+    voteStatusBanner.classList.add("error");
+  }
 }
 
 function clearBanner() {
   voteStatusBanner.textContent = "";
   voteStatusBanner.classList.add("hidden");
   voteStatusBanner.classList.remove("error");
-  plateNoticeSection.classList.add("hidden");
-}
-
-function avatarUrl(user) {
-  if (!user?.avatar || !user?.discordId) return "";
-  return `https://cdn.discordapp.com/avatars/${user.discordId}/${user.avatar}.png?size=128`;
+  plateNoticeSection?.classList.add("hidden");
 }
 
 function openModal() {
@@ -81,23 +71,6 @@ function openModal() {
 function closeModal() {
   voteModal.classList.add("hidden");
   voteModal.setAttribute("aria-hidden", "true");
-}
-
-function renderUser() {
-  if (!state.user) return;
-
-  userNameEl.textContent =
-    state.user.globalName || state.user.username || "Usuario";
-
-  const avatar = avatarUrl(state.user);
-  if (avatar) {
-    userAvatarEl.src = avatar;
-    userAvatarEl.classList.remove("hidden");
-  }
-
-  if (state.user.isAdmin) {
-    adminLinkEl.classList.remove("hidden");
-  }
 }
 
 function nomineeCardTemplate(nominee) {
@@ -128,6 +101,7 @@ function nomineeCardTemplate(nominee) {
           <span class="vote-helper">
             ${platePaused ? "Placa pausada" : "1 voto por placa"}
           </span>
+
           <button
             class="btn btn-primary btn-sm vote-btn"
             data-nominee-id="${nominee.id}"
@@ -146,14 +120,18 @@ function renderPlate() {
   const plate = state.plate;
 
   if (!plate) {
-    activePlateSection.classList.add("hidden");
-    emptyPlateState.classList.remove("hidden");
-    nomineesGrid.innerHTML = "";
+    activePlateSection?.classList.add("hidden");
+    emptyPlateState?.classList.remove("hidden");
+
+    if (nomineesGrid) {
+      nomineesGrid.innerHTML = "";
+    }
+
     return;
   }
 
-  emptyPlateState.classList.add("hidden");
-  activePlateSection.classList.remove("hidden");
+  emptyPlateState?.classList.add("hidden");
+  activePlateSection?.classList.remove("hidden");
 
   plateTitleEl.textContent = plate.title;
   plateDescriptionEl.textContent =
@@ -166,7 +144,9 @@ function renderPlate() {
     plateStatusBadge.classList.add("badge-live");
   }
 
-  nomineesGrid.innerHTML = plate.nominees.map(nomineeCardTemplate).join("");
+  nomineesGrid.innerHTML = (plate.nominees || [])
+    .map(nomineeCardTemplate)
+    .join("");
 }
 
 function renderVoteStatus() {
@@ -175,22 +155,25 @@ function renderVoteStatus() {
   if (!state.plate) return;
 
   if (state.plate.status === "PAUSED") {
-    setBanner("La placa está pausada en este momento. No se puede votar hasta que vuelva a activarse.");
+    setBanner(
+      "La placa está pausada en este momento. No se puede votar hasta que vuelva a activarse.",
+      "error"
+    );
     return;
   }
 
   if (state.voteStatus?.hasVoted) {
-    setBanner("Ya emitiste tu voto en la placa activa.");
+    setBanner("Ya se registró un voto desde esta conexión.");
   }
 }
 
 async function loadPlateAndStatus() {
-  const [plate, voteStatus] = await Promise.all([
+  const [plateResponse, voteStatus] = await Promise.all([
     api("/api/active-plate"),
     api("/api/my-vote-status"),
   ]);
 
-  state.plate = plate?.plate || null;
+  state.plate = plateResponse?.plate || null;
   state.voteStatus = voteStatus || { hasVoted: false };
 
   renderPlate();
@@ -207,7 +190,11 @@ function onGridClick(event) {
   const nomineeId = button.dataset.nomineeId;
   const nomineeName = button.dataset.nomineeName;
 
-  state.selectedNominee = { id: nomineeId, name: nomineeName };
+  state.selectedNominee = {
+    id: nomineeId,
+    name: nomineeName,
+  };
+
   voteModalText.textContent = `¿Querés votar por ${nomineeName}? Esta acción no se puede deshacer.`;
   openModal();
 }
@@ -242,7 +229,7 @@ async function submitVote() {
 }
 
 function escapeHtml(value) {
-  return String(value)
+  return String(value || "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
@@ -259,16 +246,16 @@ async function init() {
     await loadPlateAndStatus();
   } catch (error) {
     console.error(error);
-    setBanner(error.message || "No se pudo cargar la página.", "error");
+    setBanner(error.message || "No se pudo cargar la placa.", "error");
   }
 }
 
-nomineesGrid.addEventListener("click", onGridClick);
-logoutBtn.addEventListener("click", logout);
-confirmVoteBtn.addEventListener("click", submitVote);
-cancelVoteBtn.addEventListener("click", closeModal);
-closeVoteModalBtn.addEventListener("click", closeModal);
-voteModal.addEventListener("click", (event) => {
+nomineesGrid?.addEventListener("click", onGridClick);
+confirmVoteBtn?.addEventListener("click", submitVote);
+cancelVoteBtn?.addEventListener("click", closeModal);
+closeVoteModalBtn?.addEventListener("click", closeModal);
+
+voteModal?.addEventListener("click", (event) => {
   const shouldClose = event.target?.dataset?.closeModal === "true";
   if (shouldClose) closeModal();
 });
