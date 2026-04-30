@@ -202,36 +202,31 @@ function onGridClick(event) {
 }
 
 async function submitVote() {
-  if (!state.selectedNominee || state.submitting) return;
-  if (state.plate?.status !== "ACTIVE") return;
-
-  state.submitting = true;
-  confirmVoteBtn.disabled = true;
-  cancelVoteBtn.disabled = true;
+  if (!state.selectedNominee) return;
 
   try {
-    await api("/api/vote", {
+    const result = await api("/api/vote", {
       method: "POST",
       body: JSON.stringify({
         nomineeId: state.selectedNominee.id,
       }),
     });
 
+    // 👇 ACTUALIZA EL ESTADO CON LO QUE DEVUELVE EL BACKEND
     state.voteStatus = {
       ...state.voteStatus,
       remainingVotes: Number(result.remainingVotes || 0),
       hasVoted: Number(result.remainingVotes || 0) <= 0,
     };
+
     setBanner("Voto contabilizado.", "success");
-    renderPlate();
+
+    closeConfirmModal();
     renderVoteStatus();
-    closeModal();
-  } catch (error) {
-    setBanner(error.message || "No se pudo registrar el voto.", "error");
-  } finally {
-    state.submitting = false;
-    confirmVoteBtn.disabled = false;
-    cancelVoteBtn.disabled = false;
+    renderPlate();
+
+  } catch (err) {
+    setBanner(err.message || "No se pudo registrar el voto.", "error");
   }
 }
 
