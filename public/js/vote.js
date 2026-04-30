@@ -241,18 +241,6 @@ async function submitVote() {
   }
 }
 
-async function logout() {
-  try {
-    await api("/auth/logout", {
-      method: "POST",
-    });
-  } catch (_) {
-    // noop
-  } finally {
-    window.location.href = "/";
-  }
-}
-
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")

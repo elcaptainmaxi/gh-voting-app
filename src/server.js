@@ -85,15 +85,29 @@ app.use(
 
 app.use("/auth", authRoutes);
 app.use("/api", apiRoutes);
+
+app.get("/vote.html", (_req, res) => {
+  res.redirect("/vote");
+});
+
+app.get("/admin.html", (_req, res) => {
+  res.redirect("/admin");
+});
+
+app.get("/vote", (_req, res) => {
+  res.sendFile(path.join(__dirname, "../public/vote.html"));
+});
+
+app.get("/admin", (_req, res) => {
+  res.sendFile(path.join(__dirname, "../public/admin.html"));
+});
+
+
+app.get("*", (_req, res) => {
+  res.sendFile(path.join(__dirname, "../public/index.html"));
+});
+
 app.use(express.static(path.join(__dirname, "../public")));
-
-app.get('/vote', (_req, res) => {
-  res.sendFile(path.join(__dirname, '../public/vote.html'));
-});
-
-app.get('/admin', (_req, res) => {
-  res.sendFile(path.join(__dirname, '../public/admin.html'));
-});
 
 app.get('/', (_req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
@@ -103,18 +117,7 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
 
-app.get("*", (_req, res) => {
-  res.sendFile(path.join(__dirname, "../public/index.html"));
-});
 
 app.listen(env.PORT, () => {
   console.log(`Servidor listo en ${env.APP_URL}`);
-});
-
-app.get('/vote.html', (_req, res) => {
-  res.redirect('/vote');
-});
-
-app.get('/admin.html', (_req, res) => {
-  res.redirect('/admin');
 });

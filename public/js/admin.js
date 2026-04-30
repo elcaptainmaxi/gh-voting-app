@@ -673,7 +673,7 @@ async function init() {
     setPanel("create");
   } catch (error) {
     console.error(error);
-    alert(error.message || "No se pudo cargar el panel admin.");
+    window.location.href = "/auth/login";
   }
 }
 
