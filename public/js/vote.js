@@ -184,13 +184,6 @@ function renderVoteStatus() {
   }
 }
 
-async function loadSession() {
-  const me = await api("/api/me");
-  state.user = me.user;
-  state.csrfToken = me.csrfToken;
-  renderUser();
-}
-
 async function loadPlateAndStatus() {
   const [plate, voteStatus] = await Promise.all([
     api("/api/active-plate"),
@@ -275,7 +268,6 @@ function escapeHtmlAttr(value) {
 
 async function init() {
   try {
-    await loadSession();
     await loadPlateAndStatus();
   } catch (error) {
     console.error(error);

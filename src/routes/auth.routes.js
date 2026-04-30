@@ -39,7 +39,6 @@ router.get("/callback", authLimiter, async (req, res) => {
     const clientId = requireEnv("DISCORD_CLIENT_ID");
     const clientSecret = requireEnv("DISCORD_CLIENT_SECRET");
     const redirectUri = requireEnv("DISCORD_REDIRECT_URI");
-    const adminDiscordId = process.env.ADMIN_DISCORD_ID;
 
     const { code, state } = req.query;
 
@@ -87,9 +86,12 @@ router.get("/callback", authLimiter, async (req, res) => {
       return res.status(400).send("No se pudo obtener el usuario de Discord.");
     }
 
-    const isAdmin = adminDiscordId
-      ? String(discordUser.id) === String(adminDiscordId)
-      : false;
+    const adminDiscordIds = String(process.env.ADMIN_DISCORD_IDS || process.env.ADMIN_DISCORD_ID || "")
+      .split(",")
+     .map((id) => id.trim())
+      .filter(Boolean);
+
+    const isAdmin = adminDiscordIds.includes(String(discordUser.id));
 
     const username =
       discordUser.username ||

@@ -25,7 +25,7 @@ router.get("/me", requireAuth, async (req, res) => {
   return res.json(serializeUser(req.user, req.session.csrfToken));
 });
 
-router.get("/active-plate", requireAuth, async (_req, res) => {
+router.get("/active-plate", async (_req, res) => {
   let plate = await prisma.plate.findFirst({
     where: { status: "ACTIVE" },
     orderBy: { createdAt: "desc" },
@@ -65,7 +65,7 @@ router.get("/active-plate", requireAuth, async (_req, res) => {
   return res.json({ plate });
 });
 
-router.get("/my-vote-status", requireAuth, async (req, res) => {
+router.get("/my-vote-status", async (req, res) => {
   const activePlate = await prisma.plate.findFirst({
     where: { status: "ACTIVE" },
     select: { id: true },
@@ -79,12 +79,13 @@ router.get("/my-vote-status", requireAuth, async (req, res) => {
     });
   }
 
-  const existingVote = await prisma.vote.findUnique({
+  const clientIp = getClientIp(req);
+  const voterIpHash = hashIp(clientIp);
+
+  const existingVote = await prisma.vote.findFirst({
     where: {
-      plateId_userId: {
-        plateId: activePlate.id,
-        userId: req.user.id,
-      },
+      plateId: activePlate.id,
+      voterIpHash,
     },
     select: { id: true },
   });
@@ -95,7 +96,7 @@ router.get("/my-vote-status", requireAuth, async (req, res) => {
   });
 });
 
-router.post("/vote", requireAuth, requireCsrf, voteLimiter, async (req, res) => {
+router.post("/vote", voteLimiter, async (req, res) => {
   const { nomineeId } = req.body || {};
 
   if (!nomineeId || typeof nomineeId !== "string") {
@@ -124,17 +125,17 @@ router.post("/vote", requireAuth, requireCsrf, voteLimiter, async (req, res) => 
     return res.status(400).json({ error: "El nominado no pertenece a la placa activa." });
   }
 
-  const existingVote = await prisma.vote.findUnique({
+  const ipVoteCount = await prisma.vote.count({
     where: {
-      plateId_userId: {
-        plateId: activePlate.id,
-        userId: req.user.id,
-      },
+      plateId: activePlate.id,
+      voterIpHash,
     },
   });
 
-  if (existingVote) {
-    return res.status(409).json({ error: "Ya votaste en esta placa." });
+  if (ipVoteCount >= activePlate.maxVotesPerIp) {
+    return res.status(429).json({
+      error: "Ya se registró un voto desde esta conexión en la placa activa.",
+    });
   }
 
   const clientIp = getClientIp(req);
@@ -158,7 +159,7 @@ router.post("/vote", requireAuth, requireCsrf, voteLimiter, async (req, res) => 
       data: {
         plateId: activePlate.id,
         nomineeId,
-        userId: req.user.id,
+        userId: null,
         voterIpHash,
       },
     });

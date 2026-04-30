@@ -60,7 +60,7 @@ model Vote {
   id             String   @id @default(cuid())
   plateId        String
   nomineeId      String
-  userId         String
+  userId         String?
   voterIpHash    String
   userAgent      String?
   createdAt      DateTime @default(now())
