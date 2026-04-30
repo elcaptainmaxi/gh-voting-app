@@ -230,6 +230,13 @@ async function submitVote() {
   }
 }
 
+function closeConfirmModal() {
+  const modal = document.getElementById("confirm-modal");
+  if (modal) {
+    modal.classList.remove("open");
+  }
+}
+
 function escapeHtml(value) {
   return String(value || "")
     .replaceAll("&", "&amp;")
