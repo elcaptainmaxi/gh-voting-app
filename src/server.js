@@ -110,3 +110,11 @@ app.get("*", (_req, res) => {
 app.listen(env.PORT, () => {
   console.log(`Servidor listo en ${env.APP_URL}`);
 });
+
+app.get('/vote.html', (_req, res) => {
+  res.redirect('/vote');
+});
+
+app.get('/admin.html', (_req, res) => {
+  res.redirect('/admin');
+});

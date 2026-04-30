@@ -142,7 +142,7 @@ router.get("/callback", authLimiter, async (req, res) => {
         return res.status(500).send("No se pudo guardar la sesión.");
       }
 
-      return res.redirect("/vote.html");
+      return res.redirect("/vote");
     });
   } catch (error) {
     console.error("Discord OAuth callback error:", error?.response?.data || error);
