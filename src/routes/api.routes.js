@@ -82,16 +82,16 @@ router.get("/my-vote-status", async (req, res) => {
   const clientIp = getClientIp(req);
   const voterIpHash = hashIp(clientIp);
 
-  const existingVote = await prisma.vote.findFirst({
+  const ipVoteCount = await prisma.vote.count({
     where: {
       plateId: activePlate.id,
       voterIpHash,
     },
-    select: { id: true },
   });
 
   return res.json({
-    hasVoted: Boolean(existingVote),
+    hasVoted: ipVoteCount > 0,
+    voteCount: ipVoteCount,
     plateId: activePlate.id,
   });
 });
@@ -120,10 +120,19 @@ router.post("/vote", voteLimiter, async (req, res) => {
     return res.status(400).json({ error: "No hay una placa activa para votar." });
   }
 
-  const nomineeExists = activePlate.nominees.some((nominee) => nominee.id === nomineeId);
+  const nomineeExists = activePlate.nominees.some(
+    (nominee) => nominee.id === nomineeId
+  );
+
   if (!nomineeExists) {
-    return res.status(400).json({ error: "El nominado no pertenece a la placa activa." });
+    return res.status(400).json({
+      error: "El nominado no pertenece a la placa activa.",
+    });
   }
+
+  const clientIp = getClientIp(req);
+  const voterIpHash = hashIp(clientIp);
+
   const ipVoteCount = await prisma.vote.count({
     where: {
       plateId: activePlate.id,
@@ -152,12 +161,10 @@ router.post("/vote", voteLimiter, async (req, res) => {
       voteId: vote.id,
     });
   } catch (error) {
-    if (error?.code === "P2002") {
-      return res.status(409).json({ error: "Ya votaste en esta placa." });
-    }
-
     console.error(error);
-    return res.status(500).json({ error: "No se pudo registrar el voto." });
+    return res.status(500).json({
+      error: "No se pudo registrar el voto.",
+    });
   }
 });
 
@@ -194,7 +201,9 @@ router.post("/admin/plates", requireCsrf, async (req, res) => {
     return res.status(400).json({ error: "El título es obligatorio." });
   }
 
-  const normalizedStatus = ["DRAFT", "ACTIVE", "PAUSED", "FINISHED"].includes(status)
+  const normalizedStatus = ["DRAFT", "ACTIVE", "PAUSED", "FINISHED"].includes(
+    status
+  )
     ? status
     : "DRAFT";
 
@@ -230,7 +239,9 @@ router.patch("/admin/plates/:plateId", requireCsrf, async (req, res) => {
     return res.status(404).json({ error: "La placa no existe." });
   }
 
-  const normalizedStatus = ["DRAFT", "ACTIVE", "PAUSED", "FINISHED"].includes(status)
+  const normalizedStatus = ["DRAFT", "ACTIVE", "PAUSED", "FINISHED"].includes(
+    status
+  )
     ? status
     : undefined;
 
@@ -248,7 +259,9 @@ router.patch("/admin/plates/:plateId", requireCsrf, async (req, res) => {
     where: { id: plateId },
     data: {
       ...(title !== undefined ? { title: String(title).trim() } : {}),
-      ...(description !== undefined ? { description: String(description).trim() } : {}),
+      ...(description !== undefined
+        ? { description: String(description).trim() }
+        : {}),
       ...(maxVotesPerIp !== undefined
         ? { maxVotesPerIp: Math.max(1, Number(maxVotesPerIp) || 1) }
         : {}),
@@ -360,128 +373,153 @@ router.post("/admin/plates/:plateId/nominees", requireCsrf, async (req, res) => 
   return res.status(201).json({ nominee });
 });
 
-router.post("/admin/plates/:plateId/nominees/from-catalog", requireCsrf, async (req, res) => {
-  const { plateId } = req.params;
-  const { participantIds } = req.body || {};
+router.post(
+  "/admin/plates/:plateId/nominees/from-catalog",
+  requireCsrf,
+  async (req, res) => {
+    const { plateId } = req.params;
+    const { participantIds } = req.body || {};
 
-  if (!Array.isArray(participantIds) || participantIds.length === 0) {
-    return res.status(400).json({ error: "Seleccioná al menos un participante." });
-  }
+    if (!Array.isArray(participantIds) || participantIds.length === 0) {
+      return res.status(400).json({ error: "Seleccioná al menos un participante." });
+    }
 
-  const plate = await prisma.plate.findUnique({
-    where: { id: plateId },
-    select: { id: true },
-  });
-
-  if (!plate) {
-    return res.status(404).json({ error: "La placa no existe." });
-  }
-
-  const participants = await prisma.participantCatalog.findMany({
-    where: {
-      id: { in: participantIds },
-      isActive: true,
-    },
-    orderBy: { createdAt: "asc" },
-  });
-
-  if (!participants.length) {
-    return res.status(400).json({ error: "No se encontraron participantes válidos." });
-  }
-
-  const existingNominees = await prisma.nominee.findMany({
-    where: { plateId },
-    select: { displayName: true, sortOrder: true },
-    orderBy: { sortOrder: "desc" },
-  });
-
-  let currentSort = existingNominees.length ? existingNominees[0].sortOrder + 1 : 0;
-  const existingNames = new Set(existingNominees.map((n) => n.displayName.toLowerCase()));
-
-  const toCreate = participants
-    .filter((p) => !existingNames.has(p.displayName.toLowerCase()))
-    .map((p) => ({
-      plateId,
-      displayName: p.displayName,
-      imageUrl: p.imageUrl || null,
-      sortOrder: currentSort++,
-    }));
-
-  if (!toCreate.length) {
-    return res.status(409).json({ error: "Esos participantes ya están cargados en la placa." });
-  }
-
-  await prisma.nominee.createMany({
-    data: toCreate,
-  });
-
-  return res.json({ success: true, created: toCreate.length });
-});
-
-router.patch("/admin/plates/:plateId/nominees/reorder", requireCsrf, async (req, res) => {
-  const { plateId } = req.params;
-  const { orderedIds } = req.body || {};
-
-  if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
-    return res.status(400).json({ error: "Falta el nuevo orden." });
-  }
-
-  const nominees = await prisma.nominee.findMany({
-    where: { plateId },
-    select: { id: true },
-  });
-
-  const validIds = new Set(nominees.map((n) => n.id));
-  const allValid = orderedIds.every((id) => validIds.has(id));
-
-  if (!allValid || orderedIds.length !== nominees.length) {
-    return res.status(400).json({ error: "El orden enviado no es válido." });
-  }
-
-  await prisma.$transaction(
-    orderedIds.map((id, index) =>
-      prisma.nominee.update({
-        where: { id },
-        data: { sortOrder: index },
-      })
-    )
-  );
-
-  return res.json({ success: true });
-});
-
-router.delete("/admin/plates/:plateId/nominees/:nomineeId", requireCsrf, async (req, res) => {
-  const { plateId, nomineeId } = req.params;
-
-  const nominee = await prisma.nominee.findFirst({
-    where: {
-      id: nomineeId,
-      plateId,
-    },
-    select: {
-      id: true,
-      _count: {
-        select: { votes: true },
-      },
-    },
-  });
-
-  if (!nominee) {
-    return res.status(404).json({ error: "El nominado no existe en esa placa." });
-  }
-
-  if (nominee._count.votes > 0) {
-    return res.status(409).json({
-      error: "No se puede eliminar un nominado que ya tiene votos registrados.",
+    const plate = await prisma.plate.findUnique({
+      where: { id: plateId },
+      select: { id: true },
     });
+
+    if (!plate) {
+      return res.status(404).json({ error: "La placa no existe." });
+    }
+
+    const participants = await prisma.participantCatalog.findMany({
+      where: {
+        id: { in: participantIds },
+        isActive: true,
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    if (!participants.length) {
+      return res.status(400).json({
+        error: "No se encontraron participantes válidos.",
+      });
+    }
+
+    const existingNominees = await prisma.nominee.findMany({
+      where: { plateId },
+      select: { displayName: true, sortOrder: true },
+      orderBy: { sortOrder: "desc" },
+    });
+
+    let currentSort = existingNominees.length
+      ? existingNominees[0].sortOrder + 1
+      : 0;
+
+    const existingNames = new Set(
+      existingNominees.map((n) => n.displayName.toLowerCase())
+    );
+
+    const toCreate = participants
+      .filter((p) => !existingNames.has(p.displayName.toLowerCase()))
+      .map((p) => ({
+        plateId,
+        displayName: p.displayName,
+        imageUrl: p.imageUrl || null,
+        sortOrder: currentSort++,
+      }));
+
+    if (!toCreate.length) {
+      return res.status(409).json({
+        error: "Esos participantes ya están cargados en la placa.",
+      });
+    }
+
+    await prisma.nominee.createMany({
+      data: toCreate,
+    });
+
+    return res.json({ success: true, created: toCreate.length });
   }
+);
 
-  await prisma.nominee.delete({
-    where: { id: nomineeId },
-  });
+router.patch(
+  "/admin/plates/:plateId/nominees/reorder",
+  requireCsrf,
+  async (req, res) => {
+    const { plateId } = req.params;
+    const { orderedIds } = req.body || {};
 
-  return res.json({ success: true });
-});
+    if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+      return res.status(400).json({ error: "Falta el nuevo orden." });
+    }
+
+    const nominees = await prisma.nominee.findMany({
+      where: { plateId },
+      select: { id: true },
+    });
+
+    const validIds = new Set(nominees.map((n) => n.id));
+    const allValid = orderedIds.every((id) => validIds.has(id));
+
+    if (!allValid || orderedIds.length !== nominees.length) {
+      return res.status(400).json({
+        error: "El orden enviado no es válido.",
+      });
+    }
+
+    await prisma.$transaction(
+      orderedIds.map((id, index) =>
+        prisma.nominee.update({
+          where: { id },
+          data: { sortOrder: index },
+        })
+      )
+    );
+
+    return res.json({ success: true });
+  }
+);
+
+router.delete(
+  "/admin/plates/:plateId/nominees/:nomineeId",
+  requireCsrf,
+  async (req, res) => {
+    const { plateId, nomineeId } = req.params;
+
+    const nominee = await prisma.nominee.findFirst({
+      where: {
+        id: nomineeId,
+        plateId,
+      },
+      select: {
+        id: true,
+        _count: {
+          select: { votes: true },
+        },
+      },
+    });
+
+    if (!nominee) {
+      return res.status(404).json({
+        error: "El nominado no existe en esa placa.",
+      });
+    }
+
+    if (nominee._count.votes > 0) {
+      return res.status(409).json({
+        error: "No se puede eliminar un nominado que ya tiene votos registrados.",
+      });
+    }
+
+    await prisma.nominee.delete({
+      where: { id: nomineeId },
+    });
+
+    return res.json({ success: true });
+  }
+);
 
 /* =========================
    RESULTADOS
@@ -542,7 +580,9 @@ router.post("/admin/catalog", requireCsrf, async (req, res) => {
   const { displayName, imageUrl, isActive } = req.body || {};
 
   if (!displayName || typeof displayName !== "string" || !displayName.trim()) {
-    return res.status(400).json({ error: "El nombre del participante es obligatorio." });
+    return res.status(400).json({
+      error: "El nombre del participante es obligatorio.",
+    });
   }
 
   const participant = await prisma.participantCatalog.create({
@@ -563,8 +603,12 @@ router.patch("/admin/catalog/:participantId", requireCsrf, async (req, res) => {
   const participant = await prisma.participantCatalog.update({
     where: { id: participantId },
     data: {
-      ...(displayName !== undefined ? { displayName: String(displayName).trim() } : {}),
-      ...(imageUrl !== undefined ? { imageUrl: imageUrl ? String(imageUrl).trim() : null } : {}),
+      ...(displayName !== undefined
+        ? { displayName: String(displayName).trim() }
+        : {}),
+      ...(imageUrl !== undefined
+        ? { imageUrl: imageUrl ? String(imageUrl).trim() : null }
+        : {}),
       ...(isActive !== undefined ? { isActive: Boolean(isActive) } : {}),
     },
   });
