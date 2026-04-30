@@ -124,23 +124,6 @@ router.post("/vote", voteLimiter, async (req, res) => {
   if (!nomineeExists) {
     return res.status(400).json({ error: "El nominado no pertenece a la placa activa." });
   }
-
-  const ipVoteCount = await prisma.vote.count({
-    where: {
-      plateId: activePlate.id,
-      voterIpHash,
-    },
-  });
-
-  if (ipVoteCount >= activePlate.maxVotesPerIp) {
-    return res.status(429).json({
-      error: "Ya se registró un voto desde esta conexión en la placa activa.",
-    });
-  }
-
-  const clientIp = getClientIp(req);
-  const voterIpHash = hashIp(clientIp);
-
   const ipVoteCount = await prisma.vote.count({
     where: {
       plateId: activePlate.id,
