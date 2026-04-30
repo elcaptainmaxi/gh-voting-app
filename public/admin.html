@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GH Voting - Admin</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body class="app-body">
+  <header class="topbar">
+    <div class="brand">GH Voting Admin</div>
+
+    <div class="topbar-right">
+      <a href="/vote.html" class="topbar-link">Ir a votación</a>
+
+      <div class="user-chip" id="userChip">
+        <img id="userAvatar" class="user-avatar hidden" alt="Avatar" />
+        <span id="userName">Cargando...</span>
+      </div>
+
+      <button id="logoutBtn" class="btn btn-secondary">Cerrar sesión</button>
+    </div>
+  </header>
+
+  <main class="page admin-workspace">
+    <aside class="admin-sidebar">
+      <button class="admin-nav-btn is-active" data-panel="create">Crear placa</button>
+      <button class="admin-nav-btn" data-panel="plates">Placas</button>
+      <button class="admin-nav-btn" data-panel="catalog">Catálogo</button>
+    </aside>
+
+    <section class="admin-stage" data-panel="create">
+      <div class="admin-track" id="adminTrack">
+        <section class="admin-panel-slide">
+          <div class="admin-panel-card">
+            <div class="section-header">
+              <div>
+                <span class="badge">Nueva placa</span>
+                <h1>Crear placa</h1>
+              </div>
+            </div>
+
+            <form id="createPlateForm" class="form-grid admin-create-grid">
+              <div class="field admin-field-span-2">
+                <label for="title">Título</label>
+                <input id="title" name="title" type="text" maxlength="140" required />
+              </div>
+
+              <div class="field admin-field-span-2">
+                <label for="description">Descripción</label>
+                <textarea id="description" name="description" rows="3" maxlength="400"></textarea>
+              </div>
+
+              <div class="field">
+                <label for="maxVotesPerIp">Máximo de votos por IP</label>
+                <input id="maxVotesPerIp" name="maxVotesPerIp" type="number" min="1" max="10" value="2" />
+              </div>
+
+              <div class="field">
+                <label for="status">Estado inicial</label>
+                <select id="status" name="status">
+                  <option value="DRAFT">DRAFT</option>
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="PAUSED">PAUSED</option>
+                </select>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Crear placa</button>
+              </div>
+            </form>
+
+            <div id="createPlateMessage" class="form-message hidden"></div>
+          </div>
+        </section>
+
+        <section class="admin-panel-slide">
+          <div class="admin-panel-card">
+            <div class="section-header">
+              <div>
+                <span class="badge">Placas</span>
+                <h2>Administrar placas</h2>
+              </div>
+            </div>
+
+            <div id="platesList" class="plates-list"></div>
+          </div>
+        </section>
+
+        <section class="admin-panel-slide">
+          <div class="admin-panel-card">
+            <div class="section-header">
+              <div>
+                <span class="badge">Catálogo</span>
+                <h2>Participantes</h2>
+              </div>
+            </div>
+
+            <form id="catalogForm" class="form-grid admin-create-grid">
+              <div class="field">
+                <label for="catalogDisplayName">Nombre</label>
+                <input id="catalogDisplayName" name="displayName" type="text" maxlength="80" required />
+              </div>
+
+              <div class="field">
+                <label for="catalogImageUrl">Imagen (URL)</label>
+                <input id="catalogImageUrl" name="imageUrl" type="url" placeholder="https://..." />
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Agregar participante</button>
+              </div>
+            </form>
+
+            <div id="catalogMessage" class="form-message hidden"></div>
+            <div id="catalogList" class="catalog-grid"></div>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <template id="plateTemplate">
+    <article class="plate-card-admin-collapsible" data-plate-id="">
+      <button class="plate-collapse-trigger" type="button">
+        <div class="plate-collapse-main">
+          <strong class="plate-admin-title"></strong>
+          <span class="plate-admin-status badge"></span>
+        </div>
+        <span class="plate-collapse-icon">⌄</span>
+      </button>
+
+      <div class="plate-collapse-body hidden">
+        <p class="plate-admin-description"></p>
+
+        <section class="admin-subsection">
+          <div class="section-subheader">
+            <h4>Configuración</h4>
+          </div>
+
+          <form class="edit-plate-form form-grid compact-grid">
+            <input type="hidden" name="plateId" />
+
+            <div class="field">
+              <label>Título</label>
+              <input name="title" type="text" maxlength="140" required />
+            </div>
+
+            <div class="field">
+              <label>Descripción</label>
+              <textarea name="description" rows="2" maxlength="400"></textarea>
+            </div>
+
+            <div class="field">
+              <label>Máx. votos por IP</label>
+              <input name="maxVotesPerIp" type="number" min="1" max="10" required />
+            </div>
+
+            <div class="field">
+              <label>Estado</label>
+              <select name="status">
+                <option value="DRAFT">DRAFT</option>
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="PAUSED">PAUSED</option>
+                <option value="FINISHED">FINISHED</option>
+              </select>
+            </div>
+
+            <div class="form-actions inline-actions">
+              <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+              <button type="button" class="btn btn-secondary btn-sm btn-load-results">Resultados</button>
+              <button type="button" class="btn btn-danger btn-sm btn-delete-plate">Eliminar placa</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="admin-subsection nominees-admin-box">
+          <div class="section-subheader">
+            <h4>Nominados</h4>
+            <p>Podés arrastrarlos para reordenar.</p>
+          </div>
+
+          <div class="catalog-picker-box compact-catalog-picker-box">
+            <div class="catalog-picker-list"></div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-primary btn-sm btn-add-selected-catalog">
+                Agregar seleccionados
+              </button>
+            </div>
+          </div>
+
+          <div class="nominees-admin-list draggable-nominees"></div>
+        </section>
+        <section class="admin-subsection results-box hidden">
+          <div class="section-subheader">
+            <h4>Resultados</h4>
+          </div>
+          <div class="results-list"></div>
+        </section>
+
+        <div class="plate-admin-message form-message hidden"></div>
+      </div>
+    </article>
+  </template>
+
+  <script src="/js/admin.js" defer></script>
+</body>
+</html>

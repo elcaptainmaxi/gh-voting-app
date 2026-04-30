@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GH Voting - Votar</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body class="app-body">
+  <header class="topbar">
+    <div class="brand">GH Voting</div>
+
+    <div class="topbar-right">
+      <a href="/admin.html" id="adminLink" class="topbar-link hidden">Admin</a>
+
+      <div class="user-chip" id="userChip">
+        <img id="userAvatar" class="user-avatar hidden" alt="Avatar" />
+        <span id="userName">Cargando...</span>
+      </div>
+
+      <button id="logoutBtn" class="btn btn-secondary">Cerrar sesión</button>
+    </div>
+  </header>
+
+  <main class="page page-vote clean-vote-page">
+    <section id="plateNoticeSection" class="hidden">
+      <div id="voteStatusBanner" class="info-banner hidden"></div>
+    </section>
+
+    <section id="activePlateSection" class="plate-section hidden">
+      <div class="plate-card plate-card-compact">
+        <div class="plate-content compact-plate-content">
+          <span id="plateStatusBadge" class="badge badge-live">ACTIVE</span>
+          <h2 id="plateTitle">Cargando placa...</h2>
+          <p id="plateDescription"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="vote-grid-section">
+      <div class="nominee-toolbar nominee-toolbar-centered">
+        <p class="nominee-toolbar-text">Elegí a un nominado y confirmá tu voto.</p>
+      </div>
+
+      <div id="nomineesGrid" class="nominees-grid nominees-grid-centered"></div>
+    </section>
+
+    <section id="emptyPlateState" class="empty-state hidden">
+      <div class="empty-card">
+        <h2>No hay una placa disponible en este momento</h2>
+        <p>Cuando producción active o pause una placa, se mostrará acá.</p>
+      </div>
+    </section>
+  </main>
+
+  <div id="voteModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-close-modal="true"></div>
+
+    <div class="modal-dialog">
+      <button class="modal-close" id="closeVoteModal" type="button" aria-label="Cerrar">×</button>
+
+      <div class="modal-body">
+        <h3>Confirmar voto</h3>
+        <p id="voteModalText">¿Querés confirmar este voto?</p>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="cancelVoteBtn">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="confirmVoteBtn">Votar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/vote.js" defer></script>
+</body>
+</html>
