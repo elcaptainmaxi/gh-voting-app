@@ -219,9 +219,8 @@ async function submitVote() {
       hasVoted: Number(result.remainingVotes || 0) <= 0,
     };
 
+    closeModal();
     setBanner("Voto contabilizado.", "success");
-
-    closeConfirmModal();
     renderVoteStatus();
     renderPlate();
 
