@@ -5,6 +5,8 @@ const state = {
   submitting: false,
 };
 
+let visitorFingerprint = null;
+
 const plateNoticeSection = document.getElementById("plateNoticeSection");
 const voteStatusBanner = document.getElementById("voteStatusBanner");
 const activePlateSection = document.getElementById("activePlateSection");
@@ -20,6 +22,18 @@ const closeVoteModalBtn = document.getElementById("closeVoteModal");
 const cancelVoteBtn = document.getElementById("cancelVoteBtn");
 const confirmVoteBtn = document.getElementById("confirmVoteBtn");
 
+async function loadFingerprint() {
+  try {
+    const fp = await FingerprintJS.load();
+    const result = await fp.get();
+
+    visitorFingerprint = result.visitorId || null;
+  } catch (error) {
+    console.warn("No se pudo generar fingerprint:", error);
+    visitorFingerprint = null;
+  }
+}
+
 async function api(path, options = {}) {
   const response = await fetch(path, {
     credentials: "include",
@@ -31,6 +45,7 @@ async function api(path, options = {}) {
   });
 
   const contentType = response.headers.get("content-type") || "";
+
   const data = contentType.includes("application/json")
     ? await response.json()
     : await response.text();
@@ -40,6 +55,7 @@ async function api(path, options = {}) {
       typeof data === "object" && data?.error
         ? data.error
         : "Ocurrió un error inesperado.";
+
     throw new Error(errorMessage);
   }
 
@@ -48,18 +64,22 @@ async function api(path, options = {}) {
 
 function setBanner(message, type = "success") {
   plateNoticeSection?.classList.remove("hidden");
+
   voteStatusBanner.textContent = message;
-  voteStatusBanner.classList.remove("hidden", "error");
+  voteStatusBanner.classList.remove("hidden", "error", "success");
 
   if (type === "error") {
     voteStatusBanner.classList.add("error");
+  } else {
+    voteStatusBanner.classList.add("success");
   }
 }
 
 function clearBanner() {
   voteStatusBanner.textContent = "";
   voteStatusBanner.classList.add("hidden");
-  voteStatusBanner.classList.remove("error");
+  voteStatusBanner.classList.remove("error", "success");
+
   plateNoticeSection?.classList.add("hidden");
 }
 
@@ -76,11 +96,13 @@ function closeModal() {
 function nomineeCardTemplate(nominee) {
   const image =
     nominee.imageUrl || "https://placehold.co/600x600/png?text=Nominado";
+
   const displayName = nominee.displayName || "Sin nombre";
 
   const platePaused = state.plate?.status === "PAUSED";
-  const alreadyVoted = state.voteStatus?.hasVoted;
-  const disableVote = platePaused || alreadyVoted;
+  const remainingVotes = Number(state.voteStatus?.remainingVotes || 0);
+
+  const disableVote = platePaused || remainingVotes <= 0;
 
   return `
     <article class="nominee-card">
@@ -99,7 +121,11 @@ function nomineeCardTemplate(nominee) {
 
         <div class="vote-actions">
           <span class="vote-helper">
-            ${platePaused ? "Placa pausada" : "1 voto por placa"}
+            ${
+              platePaused
+                ? "Placa pausada"
+                : `${remainingVotes} votos disponibles`
+            }
           </span>
 
           <button
@@ -134,6 +160,7 @@ function renderPlate() {
   activePlateSection?.classList.remove("hidden");
 
   plateTitleEl.textContent = plate.title;
+
   plateDescriptionEl.textContent =
     plate.description || "Elegí al participante que querés votar.";
 
@@ -155,7 +182,11 @@ function renderVoteStatus() {
   if (!state.plate) return;
 
   if (state.plate.status === "PAUSED") {
-    setBanner("La placa está pausada en este momento. No se puede votar hasta que vuelva a activarse.", "error");
+    setBanner(
+      "La placa está pausada en este momento. No se puede votar hasta que vuelva a activarse.",
+      "error"
+    );
+
     return;
   }
 
@@ -166,17 +197,28 @@ function renderVoteStatus() {
     return;
   }
 
-  setBanner("Ya alcanzaste el máximo de votos disponibles desde esta conexión.", "error");
+  setBanner(
+    "Ya alcanzaste el máximo de votos disponibles desde esta conexión.",
+    "error"
+  );
 }
 
 async function loadPlateAndStatus() {
+  const fingerprintQuery = encodeURIComponent(
+    visitorFingerprint || ""
+  );
+
   const [plateResponse, voteStatus] = await Promise.all([
     api("/api/active-plate"),
-    api("/api/my-vote-status"),
+    api(`/api/my-vote-status?fingerprint=${fingerprintQuery}`),
   ]);
 
   state.plate = plateResponse?.plate || null;
-  state.voteStatus = voteStatus || { hasVoted: false };
+
+  state.voteStatus = voteStatus || {
+    hasVoted: false,
+    remainingVotes: 0,
+  };
 
   renderPlate();
   renderVoteStatus();
@@ -184,10 +226,14 @@ async function loadPlateAndStatus() {
 
 function onGridClick(event) {
   const button = event.target.closest(".vote-btn");
+
   if (!button || state.submitting) return;
 
   if (state.plate?.status !== "ACTIVE") return;
-  if (state.voteStatus?.hasVoted) return;
+
+  const remainingVotes = Number(state.voteStatus?.remainingVotes || 0);
+
+  if (remainingVotes <= 0) return;
 
   const nomineeId = button.dataset.nomineeId;
   const nomineeName = button.dataset.nomineeName;
@@ -197,22 +243,29 @@ function onGridClick(event) {
     name: nomineeName,
   };
 
-  voteModalText.textContent = `¿Querés votar por ${nomineeName}? Esta acción no se puede deshacer.`;
+  voteModalText.textContent =
+    `¿Querés votar por ${nomineeName}?`;
+
   openModal();
 }
 
 async function submitVote() {
-  if (!state.selectedNominee) return;
+  if (!state.selectedNominee || state.submitting) return;
+
+  state.submitting = true;
+
+  confirmVoteBtn.disabled = true;
+  cancelVoteBtn.disabled = true;
 
   try {
     const result = await api("/api/vote", {
       method: "POST",
       body: JSON.stringify({
         nomineeId: state.selectedNominee.id,
+        fingerprint: visitorFingerprint,
       }),
     });
 
-    // 👇 ACTUALIZA EL ESTADO CON LO QUE DEVUELVE EL BACKEND
     state.voteStatus = {
       ...state.voteStatus,
       remainingVotes: Number(result.remainingVotes || 0),
@@ -220,19 +273,21 @@ async function submitVote() {
     };
 
     closeModal();
+
     setBanner("Voto contabilizado.", "success");
+
     renderVoteStatus();
     renderPlate();
-
   } catch (err) {
-    setBanner(err.message || "No se pudo registrar el voto.", "error");
-  }
-}
+    setBanner(
+      err.message || "No se pudo registrar el voto.",
+      "error"
+    );
+  } finally {
+    state.submitting = false;
 
-function closeConfirmModal() {
-  const modal = document.getElementById("confirm-modal");
-  if (modal) {
-    modal.classList.remove("open");
+    confirmVoteBtn.disabled = false;
+    cancelVoteBtn.disabled = false;
   }
 }
 
@@ -251,21 +306,33 @@ function escapeHtmlAttr(value) {
 
 async function init() {
   try {
+    await loadFingerprint();
     await loadPlateAndStatus();
   } catch (error) {
     console.error(error);
-    setBanner(error.message || "No se pudo cargar la placa.", "error");
+
+    setBanner(
+      error.message || "No se pudo cargar la placa.",
+      "error"
+    );
   }
 }
 
 nomineesGrid?.addEventListener("click", onGridClick);
+
 confirmVoteBtn?.addEventListener("click", submitVote);
+
 cancelVoteBtn?.addEventListener("click", closeModal);
+
 closeVoteModalBtn?.addEventListener("click", closeModal);
 
 voteModal?.addEventListener("click", (event) => {
-  const shouldClose = event.target?.dataset?.closeModal === "true";
-  if (shouldClose) closeModal();
+  const shouldClose =
+    event.target?.dataset?.closeModal === "true";
+
+  if (shouldClose) {
+    closeModal();
+  }
 });
 
 init();
