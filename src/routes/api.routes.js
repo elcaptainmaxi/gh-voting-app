@@ -3,7 +3,7 @@ import prisma from "../lib/prisma.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import { voteLimiter, adminLimiter } from "../middleware/rateLimiters.js";
-import { getClientIp, hashIp } from "../lib/security.js";
+import { getClientIp, hashIp, hashFingerprint } from "../lib/security.js";
 
 const router = Router();
 
@@ -18,6 +18,31 @@ function serializeUser(user, csrfToken) {
       isAdmin: user.isAdmin,
     },
     csrfToken,
+  };
+}
+
+function getFingerprintHashFromValue(fingerprint) {
+  if (typeof fingerprint !== "string") return null;
+
+  const cleanFingerprint = fingerprint.trim();
+
+  if (cleanFingerprint.length < 10 || cleanFingerprint.length > 300) {
+    return null;
+  }
+
+  return hashFingerprint(cleanFingerprint);
+}
+
+function buildVoteLimitWhere({ plateId, voterIpHash, fingerprintHash }) {
+  const orConditions = [{ voterIpHash }];
+
+  if (fingerprintHash) {
+    orConditions.push({ fingerprintHash });
+  }
+
+  return {
+    plateId,
+    OR: orConditions,
   };
 }
 
@@ -65,8 +90,6 @@ router.get("/active-plate", async (_req, res) => {
   return res.json({ plate });
 });
 
-
-// /my-vote-status
 router.get("/my-vote-status", async (req, res) => {
   const activePlate = await prisma.plate.findFirst({
     where: { status: "ACTIVE" },
@@ -89,12 +112,14 @@ router.get("/my-vote-status", async (req, res) => {
 
   const clientIp = getClientIp(req);
   const voterIpHash = hashIp(clientIp);
+  const fingerprintHash = getFingerprintHashFromValue(req.query.fingerprint);
 
   const voteCount = await prisma.vote.count({
-    where: {
+    where: buildVoteLimitWhere({
       plateId: activePlate.id,
       voterIpHash,
-    },
+      fingerprintHash,
+    }),
   });
 
   const remainingVotes = Math.max(activePlate.maxVotesPerIp - voteCount, 0);
@@ -109,7 +134,7 @@ router.get("/my-vote-status", async (req, res) => {
 });
 
 router.post("/vote", voteLimiter, async (req, res) => {
-  const { nomineeId } = req.body || {};
+  const { nomineeId, fingerprint } = req.body || {};
 
   if (!nomineeId || typeof nomineeId !== "string") {
     return res.status(400).json({ error: "Falta el nominado." });
@@ -144,17 +169,20 @@ router.post("/vote", voteLimiter, async (req, res) => {
 
   const clientIp = getClientIp(req);
   const voterIpHash = hashIp(clientIp);
+  const fingerprintHash = getFingerprintHashFromValue(fingerprint);
 
-  const ipVoteCount = await prisma.vote.count({
-    where: {
+  const voteCount = await prisma.vote.count({
+    where: buildVoteLimitWhere({
       plateId: activePlate.id,
       voterIpHash,
-    },
+      fingerprintHash,
+    }),
   });
 
-  if (ipVoteCount >= activePlate.maxVotesPerIp) {
+  if (voteCount >= activePlate.maxVotesPerIp) {
     return res.status(429).json({
-      error: "Se alcanzó el máximo de votos permitidos para esta IP en la placa activa.",
+      error:
+        "Se alcanzó el máximo de votos permitidos para esta conexión en la placa activa.",
     });
   }
 
@@ -165,16 +193,20 @@ router.post("/vote", voteLimiter, async (req, res) => {
         nomineeId,
         userId: null,
         voterIpHash,
+        fingerprintHash,
+        userAgent: req.get("user-agent") || null,
       },
     });
 
-    const remainingVotes = Math.max(activePlate.maxVotesPerIp - (ipVoteCount + 1), 0);
+    const remainingVotes = Math.max(activePlate.maxVotesPerIp - (voteCount + 1), 0);
 
     return res.status(201).json({
       success: true,
       voteId: vote.id,
       message: "Voto contabilizado.",
       remainingVotes,
+      voteCount: voteCount + 1,
+      maxVotesPerIp: activePlate.maxVotesPerIp,
     });
   } catch (error) {
     console.error(error);

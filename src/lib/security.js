@@ -24,3 +24,12 @@ export function hashIp(ip) {
     .update(String(ip))
     .digest("hex");
 }
+
+export function hashFingerprint(fingerprint) {
+  const secret = process.env.IP_HASH_SECRET || "change-me";
+
+  return crypto
+    .createHmac("sha256", secret)
+    .update(String(fingerprint || ""))
+    .digest("hex");
+}

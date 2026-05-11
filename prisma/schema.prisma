@@ -57,19 +57,21 @@ model Nominee {
 }
 
 model Vote {
-  id             String   @id @default(cuid())
-  plateId        String
-  nomineeId      String
-  userId         String?
-  voterIpHash    String
-  userAgent      String?
-  createdAt      DateTime @default(now())
-  plate          Plate    @relation(fields: [plateId], references: [id], onDelete: Cascade)
-  nominee        Nominee  @relation(fields: [nomineeId], references: [id], onDelete: Cascade)
-  user           User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String   @id @default(cuid())
+  plateId          String
+  nomineeId        String
+  userId           String?
+  voterIpHash      String
+  fingerprintHash  String?
+  userAgent        String?
+  createdAt        DateTime @default(now())
 
-  @@unique([plateId, userId])
+  plate            Plate    @relation(fields: [plateId], references: [id], onDelete: Cascade)
+  nominee          Nominee  @relation(fields: [nomineeId], references: [id], onDelete: Cascade)
+  user             User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([plateId, voterIpHash])
+  @@index([plateId, fingerprintHash])
   @@index([nomineeId])
 }
 
