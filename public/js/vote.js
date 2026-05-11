@@ -22,14 +22,54 @@ const closeVoteModalBtn = document.getElementById("closeVoteModal");
 const cancelVoteBtn = document.getElementById("cancelVoteBtn");
 const confirmVoteBtn = document.getElementById("confirmVoteBtn");
 
+async function sha256(text) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(text);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+
+  return [...new Uint8Array(hashBuffer)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function getOrCreateLocalDeviceId() {
+  const key = "ghny_device_id";
+
+  let deviceId = localStorage.getItem(key);
+
+  if (!deviceId) {
+    deviceId = crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random()}-${navigator.userAgent}`;
+
+    localStorage.setItem(key, deviceId);
+  }
+
+  return deviceId;
+}
+
 async function loadFingerprint() {
   try {
-    const fp = await FingerprintJS.load();
-    const result = await fp.get();
+    const deviceId = getOrCreateLocalDeviceId();
 
-    visitorFingerprint = result.visitorId || null;
+    const rawFingerprint = [
+      deviceId,
+      navigator.userAgent || "",
+      navigator.language || "",
+      screen.width || "",
+      screen.height || "",
+      screen.colorDepth || "",
+      Intl.DateTimeFormat().resolvedOptions().timeZone || "",
+      navigator.hardwareConcurrency || "",
+      navigator.deviceMemory || "",
+      navigator.platform || "",
+    ].join("|");
+
+    visitorFingerprint = await sha256(rawFingerprint);
+
+    console.log("Fingerprint local generado:", visitorFingerprint);
   } catch (error) {
-    console.warn("No se pudo generar fingerprint:", error);
+    console.warn("No se pudo generar fingerprint local:", error);
     visitorFingerprint = null;
   }
 }
@@ -204,9 +244,7 @@ function renderVoteStatus() {
 }
 
 async function loadPlateAndStatus() {
-  const fingerprintQuery = encodeURIComponent(
-    visitorFingerprint || ""
-  );
+  const fingerprintQuery = encodeURIComponent(visitorFingerprint || "");
 
   const [plateResponse, voteStatus] = await Promise.all([
     api("/api/active-plate"),
@@ -243,8 +281,7 @@ function onGridClick(event) {
     name: nomineeName,
   };
 
-  voteModalText.textContent =
-    `¿Querés votar por ${nomineeName}?`;
+  voteModalText.textContent = `¿Querés votar por ${nomineeName}?`;
 
   openModal();
 }
@@ -319,16 +356,12 @@ async function init() {
 }
 
 nomineesGrid?.addEventListener("click", onGridClick);
-
 confirmVoteBtn?.addEventListener("click", submitVote);
-
 cancelVoteBtn?.addEventListener("click", closeModal);
-
 closeVoteModalBtn?.addEventListener("click", closeModal);
 
 voteModal?.addEventListener("click", (event) => {
-  const shouldClose =
-    event.target?.dataset?.closeModal === "true";
+  const shouldClose = event.target?.dataset?.closeModal === "true";
 
   if (shouldClose) {
     closeModal();
