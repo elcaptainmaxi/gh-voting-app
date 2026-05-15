@@ -377,15 +377,51 @@ function renderPlates() {
         </div>
       `;
 
-    const catalogHost =
-      root.querySelector(".catalog-picker-box") ||
-      root.querySelector(".compact-catalog-picker-box") ||
-      root.querySelector(".catalog-picker-list")?.parentElement;
+    const selector = root.querySelector(".catalog-selector");
 
-    if (catalogHost) {
-      catalogHost.innerHTML = renderCatalogSelector(plate);
+    if (selector) {
+      selector.dataset.plateId = plate.id;
+
+      const pickerList = selector.querySelector(".catalog-picker-list");
+
+      const available = getAvailableCatalogForPlate(plate);
+      const selected = state.selectedCatalogByPlate[plate.id] || [];
+
+      pickerList.innerHTML = available.length
+        ? available
+          .map((participant) => {
+            const image =
+              participant.imageUrl ||
+              "https://placehold.co/92x92/png?text=P";
+
+            return `
+            <label class="catalog-picker-item">
+              <input
+                type="checkbox"
+                class="catalog-picker-checkbox"
+                value="${participant.id}"
+                ${selected.includes(participant.id) ? "checked" : ""}
+              />
+
+              <img
+                class="catalog-picker-thumb"
+                src="${escapeHtml(image)}"
+                alt="${escapeHtml(participant.displayName)}"
+              />
+
+              <span class="catalog-picker-name">
+                ${escapeHtml(participant.displayName)}
+              </span>
+            </label>
+          `;
+          })
+          .join("")
+        : `
+      <div class="catalog-dropdown-empty">
+        No hay participantes disponibles para agregar.
+      </div>
+    `;
     }
-
     const isOpen = state.openPlateIds.has(plate.id);
 
     collapseBody.classList.toggle("hidden", !isOpen);
