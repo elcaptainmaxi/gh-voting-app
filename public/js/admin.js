@@ -936,7 +936,7 @@ async function init() {
 }
 
 createPlateForm.addEventListener("submit", createPlate);
-catalogForm.addEventListener("submit", createCatalogParticipant);
+catalogForm?.addEventListener("submit", createCatalogParticipant);
 
 platesList.addEventListener("click", handlePlateActions);
 platesList.addEventListener("submit", handlePlateForms);
@@ -945,25 +945,17 @@ platesList.addEventListener("input", handleCatalogSearch);
 
 catalogList.addEventListener("click", handleCatalogActions);
 
-logoutBtn.addEventListener("click", logout);
+logoutBtn?.addEventListener("click", logout);
 
-closeCatalogSelectorBtn.addEventListener(
-  "click",
-  closeAllCatalogSelectors
-);
+closeCatalogSelectorBtn?.addEventListener("click", closeAllCatalogSelectors);
 
-catalogSelectorOverlay.addEventListener(
-  "click",
-  (event) => {
-    if (event.target === catalogSelectorOverlay) {
-      closeAllCatalogSelectors();
-    }
+catalogSelectorOverlay?.addEventListener("click", (event) => {
+  if (event.target === catalogSelectorOverlay) {
+    closeAllCatalogSelectors();
   }
-);
+});
 
-confirmCatalogSelectionBtn.addEventListener(
-  "click",
-  async () => {
+confirmCatalogSelectionBtn?.addEventListener("click", async () => {
     const plateId =
       state.activeCatalogPlateId;
 
