@@ -737,7 +737,7 @@ body {
 }
 
 .admin-stage {
-  overflow: visible;
+  overflow: hidden;
   width: 100%;
   min-width: 0;
 }
@@ -1141,16 +1141,16 @@ body {
   position: fixed;
   inset: 0;
 
+  z-index: 999999;
+
   display: flex;
   align-items: center;
   justify-content: center;
 
   padding: 28px;
 
-  background: rgba(0, 0, 0, 0.72);
+  background: rgba(0,0,0,.72);
   backdrop-filter: blur(8px);
-
-  z-index: 999999;
 }
 
 .catalog-selector-overlay.hidden {
@@ -1158,27 +1158,19 @@ body {
 }
 
 .catalog-selector-large {
-  width: min(1100px, 100%);
+  width: min(1100px, calc(100vw - 56px));
   max-height: calc(100vh - 56px);
-
-  display: flex;
-  flex-direction: column;
 
   overflow: hidden;
 
   border-radius: 28px;
 
-  background:
-    linear-gradient(
-      180deg,
-      rgba(16, 24, 50, 0.98),
-      rgba(10, 18, 38, 0.98)
-    );
+  background: #0b1230;
 
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,.08);
 
-  box-shadow:
-    0 24px 80px rgba(0,0,0,0.45);
+  display: flex;
+  flex-direction: column;
 }
 
 .catalog-selector-header {
