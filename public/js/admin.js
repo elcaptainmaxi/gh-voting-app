@@ -44,11 +44,11 @@ async function api(path, options = {}) {
     : await response.text();
 
   if (!response.ok) {
-    const errorMessage =
+    throw new Error(
       typeof data === "object" && data?.error
         ? data.error
-        : "Ocurrió un error inesperado.";
-    throw new Error(errorMessage);
+        : "Ocurrió un error inesperado."
+    );
   }
 
   return data;
@@ -60,13 +60,19 @@ function avatarUrl(user) {
 }
 
 function setMessage(element, message, type = "success") {
+  if (!element) return;
+
   element.textContent = message;
   element.classList.remove("hidden", "error");
-  if (type === "error") element.classList.add("error");
-  else element.classList.remove("error");
+
+  if (type === "error") {
+    element.classList.add("error");
+  }
 }
 
 function clearMessage(element) {
+  if (!element) return;
+
   element.textContent = "";
   element.classList.add("hidden");
   element.classList.remove("error");
@@ -77,6 +83,7 @@ function renderUser() {
     state.user?.globalName || state.user?.username || "Admin";
 
   const avatar = avatarUrl(state.user);
+
   if (avatar) {
     userAvatarEl.src = avatar;
     userAvatarEl.classList.remove("hidden");
@@ -96,11 +103,12 @@ function setPanel(panel) {
 
 async function loadSession() {
   const me = await api("/api/me");
+
   state.user = me.user;
   state.csrfToken = me.csrfToken;
 
   if (!state.user?.isAdmin) {
-    window.location.href = "/vote.html";
+    window.location.href = "/vote";
     return;
   }
 
@@ -124,23 +132,33 @@ function renderCatalog() {
   catalogList.innerHTML = "";
 
   if (!state.catalog.length) {
-    catalogList.innerHTML = `<div class="empty-card"><p>No hay participantes cargados todavía.</p></div>`;
+    catalogList.innerHTML = `
+      <div class="empty-card">
+        <p>No hay participantes cargados todavía.</p>
+      </div>
+    `;
     return;
   }
 
   catalogList.innerHTML = state.catalog
-    .map(
-      (participant) => `
+    .map((participant) => {
+      const image =
+        participant.imageUrl || "https://placehold.co/100x100/png?text=P";
+
+      return `
         <article class="catalog-item">
           <div class="catalog-item-left">
             <img
               class="catalog-thumb"
-              src="${escapeHtml(participant.imageUrl || "https://placehold.co/100x100/png?text=P")}"
+              src="${escapeHtml(image)}"
               alt="${escapeHtml(participant.displayName)}"
             />
+
             <div>
               <strong>${escapeHtml(participant.displayName)}</strong>
-              <div class="catalog-meta">${participant.isActive ? "Activo" : "Inactivo"}</div>
+              <div class="catalog-meta">
+                ${participant.isActive ? "Activo" : "Inactivo"}
+              </div>
             </div>
           </div>
 
@@ -163,8 +181,8 @@ function renderCatalog() {
             </button>
           </div>
         </article>
-      `
-    )
+      `;
+    })
     .join("");
 }
 
@@ -173,11 +191,23 @@ function nomineeAdminRow(nominee) {
   const displayName = nominee.displayName || "Sin nombre";
 
   return `
-    <div class="nominee-admin-row draggable-nominee" draggable="true" data-nominee-id="${nominee.id}">
+    <div
+      class="nominee-admin-row draggable-nominee"
+      draggable="true"
+      data-nominee-id="${nominee.id}"
+    >
       <div class="nominee-admin-left">
         <span class="drag-handle">⋮⋮</span>
-        <img class="nominee-admin-thumb" src="${escapeHtml(image)}" alt="${escapeHtml(displayName)}" />
-        <div class="nominee-admin-name">${escapeHtml(displayName)}</div>
+
+        <img
+          class="nominee-admin-thumb"
+          src="${escapeHtml(image)}"
+          alt="${escapeHtml(displayName)}"
+        />
+
+        <div class="nominee-admin-name">
+          ${escapeHtml(displayName)}
+        </div>
       </div>
 
       <button
@@ -199,13 +229,18 @@ function resultRow(result) {
       <div class="result-left">
         <div class="result-name">${escapeHtml(displayName)}</div>
       </div>
-      <div class="result-votes">${Number(result.votes || 0)} votos</div>
+
+      <div class="result-votes">
+        ${Number(result.votes || 0)} votos
+      </div>
     </div>
   `;
 }
 
 function getAvailableCatalogForPlate(plate) {
-  const usedNames = new Set((plate.nominees || []).map((n) => n.displayName.toLowerCase()));
+  const usedNames = new Set(
+    (plate.nominees || []).map((n) => n.displayName.toLowerCase())
+  );
 
   return state.catalog.filter(
     (participant) =>
@@ -214,49 +249,83 @@ function getAvailableCatalogForPlate(plate) {
   );
 }
 
-function renderCatalogDropdown(plate) {
+function renderCatalogSelector(plate) {
   const available = getAvailableCatalogForPlate(plate);
   const selected = state.selectedCatalogByPlate[plate.id] || [];
 
-  if (!available.length) {
-    return `
-      <div class="catalog-dropdown-empty">
-        No hay participantes disponibles para agregar.
-      </div>
-    `;
-  }
-
-  const selectedNames = available
-    .filter((participant) => selected.includes(participant.id))
-    .map((participant) => participant.displayName);
-
   return `
-    <div class="catalog-dropdown" data-plate-id="${plate.id}">
-      <button type="button" class="catalog-dropdown-trigger btn btn-secondary btn-sm">
-        ${selectedNames.length ? escapeHtml(selectedNames.join(", ")) : "Seleccionar nominados"}
+    <div class="catalog-selector" data-plate-id="${plate.id}">
+      <button type="button" class="btn btn-primary btn-open-selector">
+        Agregar nominados desde catálogo
       </button>
 
-      <div class="catalog-dropdown-menu hidden">
-        ${available
-          .map(
-            (participant) => `
-              <label class="catalog-dropdown-option">
-                <input
-                  type="checkbox"
-                  class="catalog-dropdown-checkbox"
-                  value="${participant.id}"
-                  ${selected.includes(participant.id) ? "checked" : ""}
-                />
-                <img
-                  class="catalog-picker-thumb"
-                  src="${escapeHtml(participant.imageUrl || "https://placehold.co/92x92/png?text=P")}"
-                  alt="${escapeHtml(participant.displayName)}"
-                />
-                <span>${escapeHtml(participant.displayName)}</span>
-              </label>
-            `
-          )
-          .join("")}
+      <div class="catalog-selector-overlay hidden">
+        <div class="catalog-selector-large">
+          <div class="catalog-selector-header">
+            <div>
+              <h3>Seleccionar nominados</h3>
+              <p>Elegí uno o varios participantes del catálogo.</p>
+            </div>
+
+            <button type="button" class="btn btn-secondary btn-close-selector">
+              Cerrar
+            </button>
+          </div>
+
+          <input
+            type="text"
+            class="catalog-search-input"
+            placeholder="Buscar participante..."
+          />
+
+          <div class="catalog-picker-list">
+            ${
+              available.length
+                ? available
+                    .map((participant) => {
+                      const image =
+                        participant.imageUrl ||
+                        "https://placehold.co/92x92/png?text=P";
+
+                      return `
+                        <label class="catalog-picker-item">
+                          <input
+                            type="checkbox"
+                            class="catalog-picker-checkbox"
+                            value="${participant.id}"
+                            ${selected.includes(participant.id) ? "checked" : ""}
+                          />
+
+                          <img
+                            class="catalog-picker-thumb"
+                            src="${escapeHtml(image)}"
+                            alt="${escapeHtml(participant.displayName)}"
+                          />
+
+                          <span class="catalog-picker-name">
+                            ${escapeHtml(participant.displayName)}
+                          </span>
+                        </label>
+                      `;
+                    })
+                    .join("")
+                : `
+                  <div class="catalog-dropdown-empty">
+                    No hay participantes disponibles para agregar.
+                  </div>
+                `
+            }
+          </div>
+
+          <div class="catalog-selector-footer">
+            <button
+              type="button"
+              class="btn btn-primary btn-add-selected-catalog"
+            >
+              Agregar seleccionados
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -283,12 +352,14 @@ function renderPlates() {
     const trigger = node.querySelector(".plate-collapse-trigger");
 
     root.dataset.plateId = plate.id;
+
     root.querySelector(".plate-admin-title").textContent = plate.title;
     root.querySelector(".plate-admin-description").textContent =
       plate.description || "Sin descripción";
     root.querySelector(".plate-admin-status").textContent = plate.status;
 
     const editForm = root.querySelector(".edit-plate-form");
+
     editForm.elements.plateId.value = plate.id;
     editForm.elements.title.value = plate.title;
     editForm.elements.description.value = plate.description || "";
@@ -296,25 +367,41 @@ function renderPlates() {
     editForm.elements.status.value = plate.status;
 
     const nomineesList = root.querySelector(".nominees-admin-list");
+
     nomineesList.dataset.plateId = plate.id;
     nomineesList.innerHTML = plate.nominees?.length
       ? plate.nominees.map(nomineeAdminRow).join("")
-      : `<div class="empty-card"><p>Esta placa todavía no tiene nominados.</p></div>`;
+      : `
+        <div class="empty-card">
+          <p>Esta placa todavía no tiene nominados.</p>
+        </div>
+      `;
 
-    const catalogPickerList = root.querySelector(".catalog-picker-list");
-    catalogPickerList.innerHTML = renderCatalogDropdown(plate);
+    const catalogHost =
+      root.querySelector(".catalog-picker-box") ||
+      root.querySelector(".compact-catalog-picker-box") ||
+      root.querySelector(".catalog-picker-list")?.parentElement;
+
+    if (catalogHost) {
+      catalogHost.innerHTML = renderCatalogSelector(plate);
+    }
 
     const isOpen = state.openPlateIds.has(plate.id);
+
     collapseBody.classList.toggle("hidden", !isOpen);
     root.classList.toggle("is-open", isOpen);
 
     trigger.addEventListener("click", () => {
       const nowOpen = collapseBody.classList.contains("hidden");
+
       collapseBody.classList.toggle("hidden");
       root.classList.toggle("is-open");
 
-      if (nowOpen) state.openPlateIds.add(plate.id);
-      else state.openPlateIds.delete(plate.id);
+      if (nowOpen) {
+        state.openPlateIds.add(plate.id);
+      } else {
+        state.openPlateIds.delete(plate.id);
+      }
     });
 
     fragment.appendChild(node);
@@ -346,13 +433,17 @@ function attachDragAndDrop() {
       event.preventDefault();
 
       const target = event.currentTarget;
-      const source = document.querySelector(`[data-nominee-id="${draggedNomineeId}"]`);
+      const source = document.querySelector(
+        `[data-nominee-id="${draggedNomineeId}"]`
+      );
+
       if (!source || source === target) return;
 
       const list = target.closest(".draggable-nominees");
       if (!list) return;
 
       const nodes = [...list.querySelectorAll(".draggable-nominee")];
+
       const sourceIndex = nodes.indexOf(source);
       const targetIndex = nodes.indexOf(target);
 
@@ -362,18 +453,20 @@ function attachDragAndDrop() {
         target.before(source);
       }
 
-      const orderedIds = [...list.querySelectorAll(".draggable-nominee")].map(
-        (row) => row.dataset.nomineeId
-      );
+      const orderedIds = [
+        ...list.querySelectorAll(".draggable-nominee"),
+      ].map((row) => row.dataset.nomineeId);
 
       const plateId = list.dataset.plateId;
 
       try {
         state.openPlateIds.add(plateId);
+
         await api(`/api/admin/plates/${plateId}/nominees/reorder`, {
           method: "PATCH",
           body: JSON.stringify({ orderedIds }),
         });
+
         await loadPlates();
       } catch (error) {
         alert(error.message);
@@ -385,6 +478,7 @@ function attachDragAndDrop() {
 
 async function createPlate(event) {
   event.preventDefault();
+
   clearMessage(createPlateMessage);
 
   const formData = new FormData(createPlateForm);
@@ -405,6 +499,7 @@ async function createPlate(event) {
     createPlateForm.elements.status.value = "DRAFT";
 
     setMessage(createPlateMessage, "Placa creada correctamente.");
+
     setPanel("plates");
     await loadPlates();
   } catch (error) {
@@ -414,6 +509,7 @@ async function createPlate(event) {
 
 async function createCatalogParticipant(event) {
   event.preventDefault();
+
   clearMessage(catalogMessage);
 
   const payload = new FormData(catalogForm);
@@ -435,7 +531,9 @@ async function createCatalogParticipant(event) {
     }
 
     catalogForm.reset();
+
     setMessage(catalogMessage, "Participante agregado al catálogo.");
+
     await loadCatalog();
   } catch (error) {
     setMessage(catalogMessage, error.message, "error");
@@ -451,10 +549,12 @@ async function handleCatalogActions(event) {
       await api(`/api/admin/catalog/${deleteBtn.dataset.id}`, {
         method: "DELETE",
       });
+
       await loadCatalog();
     } catch (error) {
       setMessage(catalogMessage, error.message, "error");
     }
+
     return;
   }
 
@@ -466,6 +566,7 @@ async function handleCatalogActions(event) {
           isActive: toggleBtn.dataset.active !== "1",
         }),
       });
+
       await loadCatalog();
     } catch (error) {
       setMessage(catalogMessage, error.message, "error");
@@ -473,50 +574,78 @@ async function handleCatalogActions(event) {
   }
 }
 
-function closeAllCatalogMenus(except = null) {
-  document.querySelectorAll(".catalog-dropdown-menu").forEach((menu) => {
-    if (menu !== except) {
-      menu.classList.add("hidden");
-    }
+function closeAllCatalogSelectors() {
+  document.querySelectorAll(".catalog-selector-overlay").forEach((overlay) => {
+    overlay.classList.add("hidden");
   });
+
+  document.body.style.overflow = "";
 }
 
 async function handlePlateActions(event) {
+  const openSelectorBtn = event.target.closest(".btn-open-selector");
+
+  if (openSelectorBtn) {
+    const selector = openSelectorBtn.closest(".catalog-selector");
+    const overlay = selector?.querySelector(".catalog-selector-overlay");
+
+    overlay?.classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+
+    return;
+  }
+
+  const closeSelectorBtn = event.target.closest(".btn-close-selector");
+
+  if (closeSelectorBtn) {
+    const overlay = closeSelectorBtn.closest(".catalog-selector-overlay");
+
+    overlay?.classList.add("hidden");
+    document.body.style.overflow = "";
+
+    return;
+  }
+
+  if (event.target.classList.contains("catalog-selector-overlay")) {
+    event.target.classList.add("hidden");
+    document.body.style.overflow = "";
+
+    return;
+  }
+
   const plateCard = event.target.closest(".plate-card-admin-collapsible");
+
   if (!plateCard) return;
 
   const plateId = plateCard.dataset.plateId;
   const messageEl = plateCard.querySelector(".plate-admin-message");
+
   clearMessage(messageEl);
 
   const removeButton = event.target.closest(".btn-remove-nominee");
   const resultsButton = event.target.closest(".btn-load-results");
   const deletePlateButton = event.target.closest(".btn-delete-plate");
   const addSelectedCatalogBtn = event.target.closest(".btn-add-selected-catalog");
-  const dropdownTrigger = event.target.closest(".catalog-dropdown-trigger");
-
-  if (dropdownTrigger) {
-    const dropdown = dropdownTrigger.closest(".catalog-dropdown");
-    const menu = dropdown.querySelector(".catalog-dropdown-menu");
-    const willOpen = menu.classList.contains("hidden");
-
-    closeAllCatalogMenus(willOpen ? menu : null);
-    menu.classList.toggle("hidden", !willOpen);
-    return;
-  }
 
   if (removeButton) {
     try {
       state.openPlateIds.add(plateId);
-      await api(`/api/admin/plates/${plateId}/nominees/${removeButton.dataset.nomineeId}`, {
-        method: "DELETE",
-      });
+
+      await api(
+        `/api/admin/plates/${plateId}/nominees/${removeButton.dataset.nomineeId}`,
+        {
+          method: "DELETE",
+        }
+      );
+
       setMessage(messageEl, "Nominado eliminado.");
+
       await loadPlates();
       await loadCatalog();
     } catch (error) {
       setMessage(messageEl, error.message, "error");
     }
+
     return;
   }
 
@@ -526,20 +655,28 @@ async function handlePlateActions(event) {
 
     try {
       state.openPlateIds.add(plateId);
+
       const data = await api(`/api/admin/plates/${plateId}/results`);
+
       resultsList.innerHTML = (data.results || []).length
         ? data.results.map(resultRow).join("")
-        : `<div class="empty-card"><p>No hay votos todavía.</p></div>`;
+        : `
+          <div class="empty-card">
+            <p>No hay votos todavía.</p>
+          </div>
+        `;
 
       resultsBox.classList.remove("hidden");
     } catch (error) {
       setMessage(messageEl, error.message, "error");
     }
+
     return;
   }
 
   if (deletePlateButton) {
     const confirmed = confirm("¿Eliminar esta placa y todos sus datos?");
+
     if (!confirmed) return;
 
     try {
@@ -549,11 +686,13 @@ async function handlePlateActions(event) {
       await api(`/api/admin/plates/${plateId}`, {
         method: "DELETE",
       });
+
       await loadPlates();
       await loadCatalog();
     } catch (error) {
       setMessage(messageEl, error.message, "error");
     }
+
     return;
   }
 
@@ -567,6 +706,7 @@ async function handlePlateActions(event) {
 
     try {
       state.openPlateIds.add(plateId);
+
       await api(`/api/admin/plates/${plateId}/nominees/from-catalog`, {
         method: "POST",
         body: JSON.stringify({
@@ -575,7 +715,11 @@ async function handlePlateActions(event) {
       });
 
       state.selectedCatalogByPlate[plateId] = [];
+
       setMessage(messageEl, "Participantes agregados a la placa.");
+
+      closeAllCatalogSelectors();
+
       await loadPlates();
       await loadCatalog();
     } catch (error) {
@@ -586,10 +730,12 @@ async function handlePlateActions(event) {
 
 async function handlePlateForms(event) {
   const plateCard = event.target.closest(".plate-card-admin-collapsible");
+
   if (!plateCard) return;
 
   const plateId = plateCard.dataset.plateId;
   const messageEl = plateCard.querySelector(".plate-admin-message");
+
   clearMessage(messageEl);
 
   if (event.target.matches(".edit-plate-form")) {
@@ -611,6 +757,7 @@ async function handlePlateForms(event) {
       });
 
       setMessage(messageEl, "Placa actualizada.");
+
       await loadPlates();
     } catch (error) {
       setMessage(messageEl, error.message, "error");
@@ -619,11 +766,14 @@ async function handlePlateForms(event) {
 }
 
 function handlePlateInputChange(event) {
-  const checkbox = event.target.closest(".catalog-dropdown-checkbox");
+  const checkbox = event.target.closest(".catalog-picker-checkbox");
+
   if (!checkbox) return;
 
-  const dropdown = checkbox.closest(".catalog-dropdown");
-  const plateId = dropdown.dataset.plateId;
+  const selector = checkbox.closest(".catalog-selector");
+  const plateId = selector?.dataset.plateId;
+
+  if (!plateId) return;
 
   if (!state.selectedCatalogByPlate[plateId]) {
     state.selectedCatalogByPlate[plateId] = [];
@@ -634,23 +784,24 @@ function handlePlateInputChange(event) {
       state.selectedCatalogByPlate[plateId].push(checkbox.value);
     }
   } else {
-    state.selectedCatalogByPlate[plateId] = state.selectedCatalogByPlate[plateId].filter(
-      (id) => id !== checkbox.value
-    );
+    state.selectedCatalogByPlate[plateId] =
+      state.selectedCatalogByPlate[plateId].filter(
+        (id) => id !== checkbox.value
+      );
   }
+}
 
-  const plate = state.plates.find((p) => p.id === plateId);
-  if (!plate) return;
+function handleCatalogSearch(event) {
+  if (!event.target.classList.contains("catalog-search-input")) return;
 
-  const available = getAvailableCatalogForPlate(plate);
-  const selectedNames = available
-    .filter((participant) => (state.selectedCatalogByPlate[plateId] || []).includes(participant.id))
-    .map((participant) => participant.displayName);
+  const query = event.target.value.toLowerCase().trim();
+  const modal = event.target.closest(".catalog-selector-large");
+  const items = modal?.querySelectorAll(".catalog-picker-item") || [];
 
-  const trigger = dropdown.querySelector(".catalog-dropdown-trigger");
-  trigger.textContent = selectedNames.length
-    ? selectedNames.join(", ")
-    : "Seleccionar nominados";
+  items.forEach((item) => {
+    const text = item.textContent.toLowerCase();
+    item.style.display = text.includes(query) ? "" : "none";
+  });
 }
 
 async function logout() {
@@ -665,7 +816,7 @@ async function logout() {
 }
 
 function escapeHtml(value) {
-  return String(value)
+  return String(value || "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
@@ -686,48 +837,20 @@ async function init() {
 
 createPlateForm.addEventListener("submit", createPlate);
 catalogForm.addEventListener("submit", createCatalogParticipant);
+
 platesList.addEventListener("click", handlePlateActions);
 platesList.addEventListener("submit", handlePlateForms);
 platesList.addEventListener("change", handlePlateInputChange);
+platesList.addEventListener("input", handleCatalogSearch);
+
 catalogList.addEventListener("click", handleCatalogActions);
+
 logoutBtn.addEventListener("click", logout);
 
-document.addEventListener("click", (event) => {
-  const insideDropdown = event.target.closest(".catalog-dropdown");
-  if (!insideDropdown) {
-    closeAllCatalogMenus();
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeAllCatalogSelectors();
   }
-});
-
-document.addEventListener("click", (event) => {
-  const openBtn = event.target.closest(".btn-open-selector");
-  if (openBtn) {
-    const wrapper = openBtn.closest(".catalog-selector");
-    wrapper?.querySelector(".catalog-selector-overlay")?.classList.remove("hidden");
-  }
-
-  const closeBtn = event.target.closest(".btn-close-selector");
-  if (closeBtn) {
-    const wrapper = closeBtn.closest(".catalog-selector");
-    wrapper?.querySelector(".catalog-selector-overlay")?.classList.add("hidden");
-  }
-
-  if (event.target.classList.contains("catalog-selector-overlay")) {
-    event.target.classList.add("hidden");
-  }
-});
-
-document.addEventListener("input", (event) => {
-  if (!event.target.classList.contains("catalog-search-input")) return;
-
-  const query = event.target.value.toLowerCase().trim();
-  const modal = event.target.closest(".catalog-selector-large");
-  const items = modal?.querySelectorAll(".catalog-picker-item") || [];
-
-  items.forEach((item) => {
-    const text = item.textContent.toLowerCase();
-    item.style.display = text.includes(query) ? "" : "none";
-  });
 });
 
 navButtons.forEach((btn) => {
