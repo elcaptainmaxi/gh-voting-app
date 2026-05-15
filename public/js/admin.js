@@ -6,6 +6,7 @@ const state = {
   currentPanel: "create",
   openPlateIds: new Set(),
   selectedCatalogByPlate: {},
+  activeCatalogPlateId: null,
 };
 
 const userNameEl = document.getElementById("userName");
@@ -24,6 +25,12 @@ const plateTemplate = document.getElementById("plateTemplate");
 
 const adminTrack = document.getElementById("adminTrack");
 const navButtons = document.querySelectorAll(".admin-nav-btn");
+
+const catalogSelectorOverlay = document.getElementById("catalogSelectorOverlay");
+const closeCatalogSelectorBtn = document.getElementById("closeCatalogSelectorBtn");
+const catalogSearchInput = document.getElementById("catalogSearchInput");
+const catalogPickerList = document.getElementById("catalogPickerList");
+const confirmCatalogSelectionBtn = document.getElementById("confirmCatalogSelectionBtn");
 
 let draggedNomineeId = null;
 
@@ -279,15 +286,14 @@ function renderCatalogSelector(plate) {
           />
 
           <div class="catalog-picker-list">
-            ${
-              available.length
-                ? available
-                    .map((participant) => {
-                      const image =
-                        participant.imageUrl ||
-                        "https://placehold.co/92x92/png?text=P";
+            ${available.length
+      ? available
+        .map((participant) => {
+          const image =
+            participant.imageUrl ||
+            "https://placehold.co/92x92/png?text=P";
 
-                      return `
+          return `
                         <label class="catalog-picker-item">
                           <input
                             type="checkbox"
@@ -307,14 +313,14 @@ function renderCatalogSelector(plate) {
                           </span>
                         </label>
                       `;
-                    })
-                    .join("")
-                : `
+        })
+        .join("")
+      : `
                   <div class="catalog-dropdown-empty">
                     No hay participantes disponibles para agregar.
                   </div>
                 `
-            }
+    }
           </div>
 
           <div class="catalog-selector-footer">
@@ -611,57 +617,125 @@ async function handleCatalogActions(event) {
 }
 
 function closeAllCatalogSelectors() {
-  document.querySelectorAll(".catalog-selector-overlay").forEach((overlay) => {
-    overlay.classList.add("hidden");
-  });
-
+  catalogSelectorOverlay.classList.add("hidden");
   document.body.style.overflow = "";
+  state.activeCatalogPlateId = null;
+}
+
+function openCatalogSelector(plateId) {
+  state.activeCatalogPlateId = plateId;
+
+  if (!state.selectedCatalogByPlate[plateId]) {
+    state.selectedCatalogByPlate[plateId] = [];
+  }
+
+  catalogSearchInput.value = "";
+
+  renderGlobalCatalogPicker("");
+
+  catalogSelectorOverlay.classList.remove("hidden");
+
+  document.body.style.overflow = "hidden";
+}
+
+function renderGlobalCatalogPicker(search = "") {
+  const plate = state.plates.find(
+    (p) => p.id === state.activeCatalogPlateId
+  );
+
+  if (!plate) {
+    catalogPickerList.innerHTML = "";
+    return;
+  }
+
+  const selected =
+    state.selectedCatalogByPlate[plate.id] || [];
+
+  const available = getAvailableCatalogForPlate(plate)
+    .filter((participant) =>
+      participant.displayName
+        .toLowerCase()
+        .includes(search.toLowerCase())
+    );
+
+  catalogPickerList.innerHTML = available.length
+    ? available
+      .map((participant) => {
+        const image =
+          participant.imageUrl ||
+          "https://placehold.co/92x92/png?text=P";
+
+        return `
+            <label class="catalog-picker-item">
+              <input
+                type="checkbox"
+                class="catalog-picker-checkbox"
+                value="${participant.id}"
+                ${selected.includes(participant.id)
+            ? "checked"
+            : ""
+          }
+              />
+
+              <img
+                class="catalog-picker-thumb"
+                src="${escapeHtml(image)}"
+                alt="${escapeHtml(participant.displayName)}"
+              />
+
+              <span class="catalog-picker-name">
+                ${escapeHtml(participant.displayName)}
+              </span>
+            </label>
+          `;
+      })
+      .join("")
+    : `
+      <div class="catalog-dropdown-empty">
+        No hay participantes disponibles para agregar.
+      </div>
+    `;
 }
 
 async function handlePlateActions(event) {
-  const openSelectorBtn = event.target.closest(".btn-open-selector");
+  const openSelectorBtn =
+    event.target.closest(".btn-open-selector");
 
   if (openSelectorBtn) {
-    const selector = openSelectorBtn.closest(".catalog-selector");
-    const overlay = selector?.querySelector(".catalog-selector-overlay");
+    const plateCard =
+      openSelectorBtn.closest(
+        ".plate-card-admin-collapsible"
+      );
 
-    overlay?.classList.remove("hidden");
-    document.body.style.overflow = "hidden";
+    if (!plateCard) return;
 
-    return;
-  }
-
-  const closeSelectorBtn = event.target.closest(".btn-close-selector");
-
-  if (closeSelectorBtn) {
-    const overlay = closeSelectorBtn.closest(".catalog-selector-overlay");
-
-    overlay?.classList.add("hidden");
-    document.body.style.overflow = "";
+    openCatalogSelector(plateCard.dataset.plateId);
 
     return;
   }
 
-  if (event.target.classList.contains("catalog-selector-overlay")) {
-    event.target.classList.add("hidden");
-    document.body.style.overflow = "";
-
-    return;
-  }
-
-  const plateCard = event.target.closest(".plate-card-admin-collapsible");
+  const plateCard =
+    event.target.closest(
+      ".plate-card-admin-collapsible"
+    );
 
   if (!plateCard) return;
 
   const plateId = plateCard.dataset.plateId;
-  const messageEl = plateCard.querySelector(".plate-admin-message");
+
+  const messageEl =
+    plateCard.querySelector(".plate-admin-message");
 
   clearMessage(messageEl);
 
-  const removeButton = event.target.closest(".btn-remove-nominee");
-  const resultsButton = event.target.closest(".btn-load-results");
-  const deletePlateButton = event.target.closest(".btn-delete-plate");
-  const addSelectedCatalogBtn = event.target.closest(".btn-add-selected-catalog");
+  const removeButton =
+    event.target.closest(".btn-remove-nominee");
+
+  const resultsButton =
+    event.target.closest(".btn-load-results");
+
+  const deletePlateButton =
+    event.target.closest(".btn-delete-plate");
 
   if (removeButton) {
     try {
@@ -674,49 +748,69 @@ async function handlePlateActions(event) {
         }
       );
 
-      setMessage(messageEl, "Nominado eliminado.");
+      setMessage(
+        messageEl,
+        "Nominado eliminado."
+      );
 
       await loadPlates();
       await loadCatalog();
     } catch (error) {
-      setMessage(messageEl, error.message, "error");
+      setMessage(
+        messageEl,
+        error.message,
+        "error"
+      );
     }
 
     return;
   }
 
   if (resultsButton) {
-    const resultsBox = plateCard.querySelector(".results-box");
-    const resultsList = plateCard.querySelector(".results-list");
+    const resultsBox =
+      plateCard.querySelector(".results-box");
+
+    const resultsList =
+      plateCard.querySelector(".results-list");
 
     try {
       state.openPlateIds.add(plateId);
 
-      const data = await api(`/api/admin/plates/${plateId}/results`);
+      const data = await api(
+        `/api/admin/plates/${plateId}/results`
+      );
 
-      resultsList.innerHTML = (data.results || []).length
-        ? data.results.map(resultRow).join("")
-        : `
-          <div class="empty-card">
-            <p>No hay votos todavía.</p>
-          </div>
-        `;
+      resultsList.innerHTML =
+        (data.results || []).length
+          ? data.results.map(resultRow).join("")
+          : `
+            <div class="empty-card">
+              <p>No hay votos todavía.</p>
+            </div>
+          `;
 
       resultsBox.classList.remove("hidden");
     } catch (error) {
-      setMessage(messageEl, error.message, "error");
+      setMessage(
+        messageEl,
+        error.message,
+        "error"
+      );
     }
 
     return;
   }
 
   if (deletePlateButton) {
-    const confirmed = confirm("¿Eliminar esta placa y todos sus datos?");
+    const confirmed = confirm(
+      "¿Eliminar esta placa y todos sus datos?"
+    );
 
     if (!confirmed) return;
 
     try {
       state.openPlateIds.delete(plateId);
+
       delete state.selectedCatalogByPlate[plateId];
 
       await api(`/api/admin/plates/${plateId}`, {
@@ -726,40 +820,11 @@ async function handlePlateActions(event) {
       await loadPlates();
       await loadCatalog();
     } catch (error) {
-      setMessage(messageEl, error.message, "error");
-    }
-
-    return;
-  }
-
-  if (addSelectedCatalogBtn) {
-    const selectedIds = state.selectedCatalogByPlate[plateId] || [];
-
-    if (!selectedIds.length) {
-      setMessage(messageEl, "Seleccioná participantes del catálogo.", "error");
-      return;
-    }
-
-    try {
-      state.openPlateIds.add(plateId);
-
-      await api(`/api/admin/plates/${plateId}/nominees/from-catalog`, {
-        method: "POST",
-        body: JSON.stringify({
-          participantIds: selectedIds,
-        }),
-      });
-
-      state.selectedCatalogByPlate[plateId] = [];
-
-      setMessage(messageEl, "Participantes agregados a la placa.");
-
-      closeAllCatalogSelectors();
-
-      await loadPlates();
-      await loadCatalog();
-    } catch (error) {
-      setMessage(messageEl, error.message, "error");
+      setMessage(
+        messageEl,
+        error.message,
+        "error"
+      );
     }
   }
 }
@@ -802,12 +867,12 @@ async function handlePlateForms(event) {
 }
 
 function handlePlateInputChange(event) {
-  const checkbox = event.target.closest(".catalog-picker-checkbox");
+  const checkbox =
+    event.target.closest(".catalog-picker-checkbox");
 
   if (!checkbox) return;
 
-  const selector = checkbox.closest(".catalog-selector");
-  const plateId = selector?.dataset.plateId;
+  const plateId = state.activeCatalogPlateId;
 
   if (!plateId) return;
 
@@ -816,8 +881,14 @@ function handlePlateInputChange(event) {
   }
 
   if (checkbox.checked) {
-    if (!state.selectedCatalogByPlate[plateId].includes(checkbox.value)) {
-      state.selectedCatalogByPlate[plateId].push(checkbox.value);
+    if (
+      !state.selectedCatalogByPlate[plateId].includes(
+        checkbox.value
+      )
+    ) {
+      state.selectedCatalogByPlate[plateId].push(
+        checkbox.value
+      );
     }
   } else {
     state.selectedCatalogByPlate[plateId] =
@@ -828,16 +899,9 @@ function handlePlateInputChange(event) {
 }
 
 function handleCatalogSearch(event) {
-  if (!event.target.classList.contains("catalog-search-input")) return;
+  if (event.target !== catalogSearchInput) return;
 
-  const query = event.target.value.toLowerCase().trim();
-  const modal = event.target.closest(".catalog-selector-large");
-  const items = modal?.querySelectorAll(".catalog-picker-item") || [];
-
-  items.forEach((item) => {
-    const text = item.textContent.toLowerCase();
-    item.style.display = text.includes(query) ? "" : "none";
-  });
+  renderGlobalCatalogPicker(event.target.value);
 }
 
 async function logout() {
@@ -882,6 +946,64 @@ platesList.addEventListener("input", handleCatalogSearch);
 catalogList.addEventListener("click", handleCatalogActions);
 
 logoutBtn.addEventListener("click", logout);
+
+closeCatalogSelectorBtn.addEventListener(
+  "click",
+  closeAllCatalogSelectors
+);
+
+catalogSelectorOverlay.addEventListener(
+  "click",
+  (event) => {
+    if (event.target === catalogSelectorOverlay) {
+      closeAllCatalogSelectors();
+    }
+  }
+);
+
+confirmCatalogSelectionBtn.addEventListener(
+  "click",
+  async () => {
+    const plateId =
+      state.activeCatalogPlateId;
+
+    if (!plateId) return;
+
+    const selectedIds =
+      state.selectedCatalogByPlate[plateId] || [];
+
+    if (!selectedIds.length) {
+      alert(
+        "Seleccioná participantes del catálogo."
+      );
+
+      return;
+    }
+
+    try {
+      state.openPlateIds.add(plateId);
+
+      await api(
+        `/api/admin/plates/${plateId}/nominees/from-catalog`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            participantIds: selectedIds,
+          }),
+        }
+      );
+
+      state.selectedCatalogByPlate[plateId] = [];
+
+      closeAllCatalogSelectors();
+
+      await loadPlates();
+      await loadCatalog();
+    } catch (error) {
+      alert(error.message);
+    }
+  }
+);
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {

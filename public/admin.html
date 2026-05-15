@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GH Voting - Admin</title>
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
+
 <body class="app-body">
   <header class="topbar">
     <div class="brand">GH Voting Admin</div>
@@ -95,28 +97,28 @@
                 <h2>Participantes</h2>
               </div>
             </div>
-        
+
             <form id="catalogForm" class="catalog-form" enctype="multipart/form-data">
               <div class="form-grid">
                 <label>
                   Nombre del participante
                   <input id="catalogDisplayName" name="displayName" type="text" maxlength="80" required />
                 </label>
-        
+
                 <label>
                   Imagen del participante
                   <input id="catalogImage" name="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif"
                     required />
                 </label>
               </div>
-        
+
               <button type="submit" class="btn btn-primary">
                 Agregar participante
               </button>
             </form>
-        
+
             <div id="catalogMessage" class="form-message hidden"></div>
-        
+
             <div id="catalogList" class="catalog-grid"></div>
           </div>
         </section>
@@ -184,35 +186,10 @@
             <p>Podés arrastrarlos para reordenar.</p>
           </div>
 
-          <div class="catalog-selector">
+          <div class="catalog-selector" data-plate-id="">
             <button type="button" class="btn btn-primary btn-open-selector">
               Agregar nominados desde catálogo
             </button>
-          
-            <div class="catalog-selector-overlay hidden">
-              <div class="catalog-selector-large">
-                <div class="catalog-selector-header">
-                  <div>
-                    <h3>Seleccionar nominados</h3>
-                    <p>Elegí uno o varios participantes del catálogo.</p>
-                  </div>
-          
-                  <button type="button" class="btn btn-secondary btn-close-selector">
-                    Cerrar
-                  </button>
-                </div>
-          
-                <input type="text" class="catalog-search-input" placeholder="Buscar participante..." />
-          
-                <div class="catalog-picker-list"></div>
-          
-                <div class="catalog-selector-footer">
-                  <button type="button" class="btn btn-primary btn-add-selected-catalog">
-                    Agregar seleccionados
-                  </button>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div class="nominees-admin-list draggable-nominees"></div>
@@ -229,6 +206,32 @@
     </article>
   </template>
 
+  <div id="catalogSelectorOverlay" class="catalog-selector-overlay hidden">
+    <div class="catalog-selector-large">
+      <div class="catalog-selector-header">
+        <div>
+          <h3>Seleccionar nominados</h3>
+          <p>Elegí uno o varios participantes del catálogo.</p>
+        </div>
+
+        <button type="button" id="closeCatalogSelectorBtn" class="btn btn-secondary">
+          Cerrar
+        </button>
+      </div>
+
+      <input type="text" id="catalogSearchInput" class="catalog-search-input" placeholder="Buscar participante..." />
+
+      <div id="catalogPickerList" class="catalog-picker-list"></div>
+
+      <div class="catalog-selector-footer">
+        <button type="button" id="confirmCatalogSelectionBtn" class="btn btn-primary">
+          Agregar seleccionados
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script src="/js/admin.js" defer></script>
 </body>
+
 </html>
