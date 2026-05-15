@@ -184,12 +184,27 @@
             <p>Podés arrastrarlos para reordenar.</p>
           </div>
 
-          <div class="catalog-picker-box compact-catalog-picker-box">
-            <div class="catalog-picker-list"></div>
-            <div class="form-actions">
-              <button type="button" class="btn btn-primary btn-sm btn-add-selected-catalog">
-                Agregar seleccionados
-              </button>
+          <div class="catalog-selector">
+            <button type="button" class="btn btn-secondary btn-open-selector">
+              Seleccionar nominados
+            </button>
+          
+            <div class="catalog-selector-modal hidden">
+              <div class="catalog-selector-header">
+                <input type="text" class="catalog-search-input" placeholder="Buscar participante..." />
+          
+                <button type="button" class="btn btn-secondary btn-close-selector">
+                  Cerrar
+                </button>
+              </div>
+          
+              <div class="catalog-picker-list"></div>
+          
+              <div class="catalog-selector-footer">
+                <button type="button" class="btn btn-primary btn-add-selected-catalog">
+                  Agregar seleccionados
+                </button>
+              </div>
             </div>
           </div>
 

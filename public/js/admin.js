@@ -699,6 +699,48 @@ document.addEventListener("click", (event) => {
   }
 });
 
+document.addEventListener("click", (event) => {
+  const openBtn = event.target.closest(".btn-open-selector");
+
+  if (openBtn) {
+    const wrapper = openBtn.closest(".catalog-selector");
+
+    wrapper
+      ?.querySelector(".catalog-selector-modal")
+      ?.classList.remove("hidden");
+  }
+
+  const closeBtn = event.target.closest(".btn-close-selector");
+
+  if (closeBtn) {
+    const wrapper = closeBtn.closest(".catalog-selector");
+
+    wrapper
+      ?.querySelector(".catalog-selector-modal")
+      ?.classList.add("hidden");
+  }
+});
+
+document.addEventListener("input", (event) => {
+  if (!event.target.classList.contains("catalog-search-input")) {
+    return;
+  }
+
+  const query = event.target.value.toLowerCase();
+
+  const modal = event.target.closest(".catalog-selector-modal");
+
+  const items = modal.querySelectorAll(".catalog-picker-item");
+
+  items.forEach((item) => {
+    const text = item.textContent.toLowerCase();
+
+    item.style.display = text.includes(query)
+      ? ""
+      : "none";
+  });
+});
+
 navButtons.forEach((btn) => {
   btn.addEventListener("click", () => setPanel(btn.dataset.panel));
 });
