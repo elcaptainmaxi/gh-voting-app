@@ -185,25 +185,32 @@
           </div>
 
           <div class="catalog-selector">
-            <button type="button" class="btn btn-secondary btn-open-selector">
-              Seleccionar nominados
+            <button type="button" class="btn btn-primary btn-open-selector">
+              Agregar nominados desde catálogo
             </button>
           
-            <div class="catalog-selector-modal hidden">
-              <div class="catalog-selector-header">
+            <div class="catalog-selector-overlay hidden">
+              <div class="catalog-selector-large">
+                <div class="catalog-selector-header">
+                  <div>
+                    <h3>Seleccionar nominados</h3>
+                    <p>Elegí uno o varios participantes del catálogo.</p>
+                  </div>
+          
+                  <button type="button" class="btn btn-secondary btn-close-selector">
+                    Cerrar
+                  </button>
+                </div>
+          
                 <input type="text" class="catalog-search-input" placeholder="Buscar participante..." />
           
-                <button type="button" class="btn btn-secondary btn-close-selector">
-                  Cerrar
-                </button>
-              </div>
+                <div class="catalog-picker-list"></div>
           
-              <div class="catalog-picker-list"></div>
-          
-              <div class="catalog-selector-footer">
-                <button type="button" class="btn btn-primary btn-add-selected-catalog">
-                  Agregar seleccionados
-                </button>
+                <div class="catalog-selector-footer">
+                  <button type="button" class="btn btn-primary btn-add-selected-catalog">
+                    Agregar seleccionados
+                  </button>
+                </div>
               </div>
             </div>
           </div>
