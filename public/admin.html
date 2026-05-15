@@ -104,7 +104,21 @@
 
               <div class="field">
                 <label for="catalogImageUrl">Imagen (URL)</label>
-                <input id="catalogImageUrl" name="imageUrl" type="url" placeholder="https://..." />
+                <form id="catalogForm" class="admin-form" enctype="multipart/form-data">
+                <label>
+                  Nombre del participante
+                  <input name="displayName" type="text" required />
+                </label>
+                
+                <label>
+                  Imagen del participante
+                  <input name="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif" required />
+                </label>
+                
+                <button class="btn btn-primary" type="submit">
+                  Agregar participante
+                </button>
+                </form>
               </div>
 
               <div class="form-actions">

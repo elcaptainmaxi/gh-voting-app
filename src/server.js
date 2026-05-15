@@ -14,6 +14,8 @@ import apiRoutes from "./routes/api.routes.js";
 import { env, isProduction } from "./config/env.js";
 import { globalLimiter } from "./middleware/rateLimiters.js";
 
+const uploadsDir = process.env.UPLOAD_DIR || "/app/uploads";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -115,6 +117,8 @@ app.get("/admin", (_req, res) => {
 app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
+
+app.use("/uploads", express.static(uploadsDir));
 
 // Fallback final.
 app.get("*", (_req, res) => {

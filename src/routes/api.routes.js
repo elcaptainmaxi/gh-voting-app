@@ -4,6 +4,7 @@ import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import { voteLimiter, adminLimiter } from "../middleware/rateLimiters.js";
 import { getClientIp, hashIp, hashFingerprint } from "../lib/security.js";
+import { imageUpload } from "../middleware/upload.js";
 
 const router = Router();
 
@@ -624,45 +625,64 @@ router.get("/admin/catalog", async (_req, res) => {
   return res.json({ participants });
 });
 
-router.post("/admin/catalog", requireCsrf, async (req, res) => {
-  const { displayName, imageUrl, isActive } = req.body || {};
+router.post(
+  "/admin/catalog",
+  requireCsrf,
+  imageUpload.single("image"),
+  async (req, res) => {
+    const { displayName, imageUrl, isActive } = req.body || {};
 
-  if (!displayName || typeof displayName !== "string" || !displayName.trim()) {
-    return res.status(400).json({
-      error: "El nombre del participante es obligatorio.",
+    if (!displayName || typeof displayName !== "string" || !displayName.trim()) {
+      return res.status(400).json({
+        error: "El nombre del participante es obligatorio.",
+      });
+    }
+
+    const uploadedImageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+    const finalImageUrl = uploadedImageUrl || (imageUrl ? String(imageUrl).trim() : null);
+
+    const participant = await prisma.participantCatalog.create({
+      data: {
+        displayName: displayName.trim(),
+        imageUrl: finalImageUrl,
+        isActive: isActive !== "false" && isActive !== false,
+      },
     });
+
+    return res.status(201).json({ participant });
   }
+);
 
-  const participant = await prisma.participantCatalog.create({
-    data: {
-      displayName: displayName.trim(),
-      imageUrl: imageUrl ? String(imageUrl).trim() : null,
-      isActive: isActive !== false,
-    },
-  });
+router.patch(
+  "/admin/catalog/:participantId",
+  requireCsrf,
+  imageUpload.single("image"),
+  async (req, res) => {
+    const { participantId } = req.params;
+    const { displayName, imageUrl, isActive } = req.body || {};
 
-  return res.status(201).json({ participant });
-});
+    const uploadedImageUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
 
-router.patch("/admin/catalog/:participantId", requireCsrf, async (req, res) => {
-  const { participantId } = req.params;
-  const { displayName, imageUrl, isActive } = req.body || {};
+    const participant = await prisma.participantCatalog.update({
+      where: { id: participantId },
+      data: {
+        ...(displayName !== undefined
+          ? { displayName: String(displayName).trim() }
+          : {}),
+        ...(uploadedImageUrl !== undefined
+          ? { imageUrl: uploadedImageUrl }
+          : imageUrl !== undefined
+          ? { imageUrl: imageUrl ? String(imageUrl).trim() : null }
+          : {}),
+        ...(isActive !== undefined
+          ? { isActive: isActive === "true" || isActive === true }
+          : {}),
+      },
+    });
 
-  const participant = await prisma.participantCatalog.update({
-    where: { id: participantId },
-    data: {
-      ...(displayName !== undefined
-        ? { displayName: String(displayName).trim() }
-        : {}),
-      ...(imageUrl !== undefined
-        ? { imageUrl: imageUrl ? String(imageUrl).trim() : null }
-        : {}),
-      ...(isActive !== undefined ? { isActive: Boolean(isActive) } : {}),
-    },
-  });
-
-  return res.json({ participant });
-});
+    return res.json({ participant });
+  }
+);
 
 router.delete("/admin/catalog/:participantId", requireCsrf, async (req, res) => {
   const { participantId } = req.params;

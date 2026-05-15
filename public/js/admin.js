@@ -416,16 +416,23 @@ async function createCatalogParticipant(event) {
   event.preventDefault();
   clearMessage(catalogMessage);
 
-  const formData = new FormData(catalogForm);
+  const payload = new FormData(catalogForm);
 
   try {
-    await api("/api/admin/catalog", {
+    const response = await fetch("/api/admin/catalog", {
       method: "POST",
-      body: JSON.stringify({
-        displayName: formData.get("displayName"),
-        imageUrl: formData.get("imageUrl"),
-      }),
+      credentials: "include",
+      headers: {
+        "x-csrf-token": state.csrfToken,
+      },
+      body: payload,
     });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.error || "No se pudo crear el participante.");
+    }
 
     catalogForm.reset();
     setMessage(catalogMessage, "Participante agregado al catálogo.");
