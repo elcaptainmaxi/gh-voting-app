@@ -95,38 +95,28 @@
                 <h2>Participantes</h2>
               </div>
             </div>
-
-            <form id="catalogForm" class="form-grid admin-create-grid">
-              <div class="field">
-                <label for="catalogDisplayName">Nombre</label>
-                <input id="catalogDisplayName" name="displayName" type="text" maxlength="80" required />
-              </div>
-
-              <div class="field">
-                <label for="catalogImageUrl">Imagen (URL)</label>
-                <form id="catalogForm" class="admin-form" enctype="multipart/form-data">
+        
+            <form id="catalogForm" class="catalog-form" enctype="multipart/form-data">
+              <div class="form-grid">
                 <label>
                   Nombre del participante
-                  <input name="displayName" type="text" required />
+                  <input id="catalogDisplayName" name="displayName" type="text" maxlength="80" required />
                 </label>
-                
+        
                 <label>
                   Imagen del participante
-                  <input name="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif" required />
+                  <input id="catalogImage" name="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif"
+                    required />
                 </label>
-                
-                <button class="btn btn-primary" type="submit">
-                  Agregar participante
-                </button>
-                </form>
               </div>
-
-              <div class="form-actions">
-                <button type="submit" class="btn btn-primary">Agregar participante</button>
-              </div>
+        
+              <button type="submit" class="btn btn-primary">
+                Agregar participante
+              </button>
             </form>
-
+        
             <div id="catalogMessage" class="form-message hidden"></div>
+        
             <div id="catalogList" class="catalog-grid"></div>
           </div>
         </section>
