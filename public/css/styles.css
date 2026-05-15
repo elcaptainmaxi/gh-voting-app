@@ -737,7 +737,7 @@ body {
 }
 
 .admin-stage {
-  overflow: hidden;
+  overflow: visible;
   width: 100%;
   min-width: 0;
 }
@@ -1518,4 +1518,10 @@ body {
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+.catalog-selector-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
 }
