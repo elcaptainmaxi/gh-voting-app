@@ -26,13 +26,72 @@ const plateTemplate = document.getElementById("plateTemplate");
 const adminTrack = document.getElementById("adminTrack");
 const navButtons = document.querySelectorAll(".admin-nav-btn");
 
-const catalogSelectorOverlay = document.getElementById("catalogSelectorOverlay");
-const closeCatalogSelectorBtn = document.getElementById("closeCatalogSelectorBtn");
-const catalogSearchInput = document.getElementById("catalogSearchInput");
-const catalogPickerList = document.getElementById("catalogPickerList");
-const confirmCatalogSelectionBtn = document.getElementById("confirmCatalogSelectionBtn");
-
 let draggedNomineeId = null;
+
+let catalogSelectorOverlay = null;
+let closeCatalogSelectorBtn = null;
+let catalogSearchInput = null;
+let catalogPickerList = null;
+let confirmCatalogSelectionBtn = null;
+
+function ensureCatalogSelectorDom() {
+  let overlay = document.getElementById("catalogSelectorOverlay");
+
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "catalogSelectorOverlay";
+    overlay.className = "catalog-selector-overlay hidden";
+
+    overlay.innerHTML = `
+      <div class="catalog-selector-large">
+        <div class="catalog-selector-header">
+          <div>
+            <h3>Seleccionar nominados</h3>
+            <p>Elegí uno o varios participantes del catálogo.</p>
+          </div>
+
+          <button
+            type="button"
+            id="closeCatalogSelectorBtn"
+            class="btn btn-secondary"
+          >
+            Cerrar
+          </button>
+        </div>
+
+        <input
+          type="text"
+          id="catalogSearchInput"
+          class="catalog-search-input"
+          placeholder="Buscar participante..."
+        />
+
+        <div
+          id="catalogPickerList"
+          class="catalog-picker-list"
+        ></div>
+
+        <div class="catalog-selector-footer">
+          <button
+            type="button"
+            id="confirmCatalogSelectionBtn"
+            class="btn btn-primary"
+          >
+            Agregar seleccionados
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+  }
+
+  catalogSelectorOverlay = overlay;
+  closeCatalogSelectorBtn = document.getElementById("closeCatalogSelectorBtn");
+  catalogSearchInput = document.getElementById("catalogSearchInput");
+  catalogPickerList = document.getElementById("catalogPickerList");
+  confirmCatalogSelectionBtn = document.getElementById("confirmCatalogSelectionBtn");
+}
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -46,6 +105,7 @@ async function api(path, options = {}) {
   });
 
   const contentType = response.headers.get("content-type") || "";
+
   const data = contentType.includes("application/json")
     ? await response.json()
     : await response.text();
@@ -85,13 +145,24 @@ function clearMessage(element) {
   element.classList.remove("error");
 }
 
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function renderUser() {
-  userNameEl.textContent =
-    state.user?.globalName || state.user?.username || "Admin";
+  if (userNameEl) {
+    userNameEl.textContent =
+      state.user?.globalName || state.user?.username || "Admin";
+  }
 
   const avatar = avatarUrl(state.user);
 
-  if (avatar) {
+  if (avatar && userAvatarEl) {
     userAvatarEl.src = avatar;
     userAvatarEl.classList.remove("hidden");
   }
@@ -103,6 +174,8 @@ function setPanel(panel) {
   navButtons.forEach((btn) => {
     btn.classList.toggle("is-active", btn.dataset.panel === panel);
   });
+
+  if (!adminTrack) return;
 
   const index = panel === "create" ? 0 : panel === "plates" ? 1 : 2;
   adminTrack.style.transform = `translate3d(-${index * 100}%, 0, 0)`;
@@ -136,6 +209,8 @@ async function loadCatalog() {
 }
 
 function renderCatalog() {
+  if (!catalogList) return;
+
   catalogList.innerHTML = "";
 
   if (!state.catalog.length) {
@@ -246,98 +321,21 @@ function resultRow(result) {
 
 function getAvailableCatalogForPlate(plate) {
   const usedNames = new Set(
-    (plate.nominees || []).map((n) => n.displayName.toLowerCase())
+    (plate.nominees || []).map((n) =>
+      String(n.displayName || "").toLowerCase()
+    )
   );
 
-  return state.catalog.filter(
-    (participant) =>
-      participant.isActive &&
-      !usedNames.has(participant.displayName.toLowerCase())
-  );
-}
+  return state.catalog.filter((participant) => {
+    const name = String(participant.displayName || "").toLowerCase();
 
-function renderCatalogSelector(plate) {
-  const available = getAvailableCatalogForPlate(plate);
-  const selected = state.selectedCatalogByPlate[plate.id] || [];
-
-  return `
-    <div class="catalog-selector" data-plate-id="${plate.id}">
-      <button type="button" class="btn btn-primary btn-open-selector">
-        Agregar nominados desde catálogo
-      </button>
-
-      <div class="catalog-selector-overlay hidden">
-        <div class="catalog-selector-large">
-          <div class="catalog-selector-header">
-            <div>
-              <h3>Seleccionar nominados</h3>
-              <p>Elegí uno o varios participantes del catálogo.</p>
-            </div>
-
-            <button type="button" class="btn btn-secondary btn-close-selector">
-              Cerrar
-            </button>
-          </div>
-
-          <input
-            type="text"
-            class="catalog-search-input"
-            placeholder="Buscar participante..."
-          />
-
-          <div class="catalog-picker-list">
-            ${available.length
-      ? available
-        .map((participant) => {
-          const image =
-            participant.imageUrl ||
-            "https://placehold.co/92x92/png?text=P";
-
-          return `
-                        <label class="catalog-picker-item">
-                          <input
-                            type="checkbox"
-                            class="catalog-picker-checkbox"
-                            value="${participant.id}"
-                            ${selected.includes(participant.id) ? "checked" : ""}
-                          />
-
-                          <img
-                            class="catalog-picker-thumb"
-                            src="${escapeHtml(image)}"
-                            alt="${escapeHtml(participant.displayName)}"
-                          />
-
-                          <span class="catalog-picker-name">
-                            ${escapeHtml(participant.displayName)}
-                          </span>
-                        </label>
-                      `;
-        })
-        .join("")
-      : `
-                  <div class="catalog-dropdown-empty">
-                    No hay participantes disponibles para agregar.
-                  </div>
-                `
-    }
-          </div>
-
-          <div class="catalog-selector-footer">
-            <button
-              type="button"
-              class="btn btn-primary btn-add-selected-catalog"
-            >
-              Agregar seleccionados
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
+    return participant.isActive && !usedNames.has(name);
+  });
 }
 
 function renderPlates() {
+  if (!platesList || !plateTemplate) return;
+
   platesList.innerHTML = "";
 
   if (!state.plates.length) {
@@ -357,6 +355,8 @@ function renderPlates() {
     const collapseBody = node.querySelector(".plate-collapse-body");
     const trigger = node.querySelector(".plate-collapse-trigger");
 
+    if (!root || !collapseBody || !trigger) continue;
+
     root.dataset.plateId = plate.id;
 
     root.querySelector(".plate-admin-title").textContent = plate.title;
@@ -366,68 +366,40 @@ function renderPlates() {
 
     const editForm = root.querySelector(".edit-plate-form");
 
-    editForm.elements.plateId.value = plate.id;
-    editForm.elements.title.value = plate.title;
-    editForm.elements.description.value = plate.description || "";
-    editForm.elements.maxVotesPerIp.value = plate.maxVotesPerIp;
-    editForm.elements.status.value = plate.status;
+    if (editForm) {
+      editForm.elements.plateId.value = plate.id;
+      editForm.elements.title.value = plate.title;
+      editForm.elements.description.value = plate.description || "";
+      editForm.elements.maxVotesPerIp.value = plate.maxVotesPerIp;
+      editForm.elements.status.value = plate.status;
+    }
 
     const nomineesList = root.querySelector(".nominees-admin-list");
 
-    nomineesList.dataset.plateId = plate.id;
-    nomineesList.innerHTML = plate.nominees?.length
-      ? plate.nominees.map(nomineeAdminRow).join("")
-      : `
-        <div class="empty-card">
-          <p>Esta placa todavía no tiene nominados.</p>
-        </div>
-      `;
+    if (nomineesList) {
+      nomineesList.dataset.plateId = plate.id;
+
+      nomineesList.innerHTML = plate.nominees?.length
+        ? plate.nominees.map(nomineeAdminRow).join("")
+        : `
+          <div class="empty-card">
+            <p>Esta placa todavía no tiene nominados.</p>
+          </div>
+        `;
+    }
 
     const selector = root.querySelector(".catalog-selector");
 
     if (selector) {
       selector.dataset.plateId = plate.id;
 
-      const pickerList = selector.querySelector(".catalog-picker-list");
-
-      const available = getAvailableCatalogForPlate(plate);
-      const selected = state.selectedCatalogByPlate[plate.id] || [];
-
-      pickerList.innerHTML = available.length
-        ? available
-          .map((participant) => {
-            const image =
-              participant.imageUrl ||
-              "https://placehold.co/92x92/png?text=P";
-
-            return `
-            <label class="catalog-picker-item">
-              <input
-                type="checkbox"
-                class="catalog-picker-checkbox"
-                value="${participant.id}"
-                ${selected.includes(participant.id) ? "checked" : ""}
-              />
-
-              <img
-                class="catalog-picker-thumb"
-                src="${escapeHtml(image)}"
-                alt="${escapeHtml(participant.displayName)}"
-              />
-
-              <span class="catalog-picker-name">
-                ${escapeHtml(participant.displayName)}
-              </span>
-            </label>
-          `;
-          })
-          .join("")
-        : `
-      <div class="catalog-dropdown-empty">
-        No hay participantes disponibles para agregar.
-      </div>
-    `;
+      selector.innerHTML = `
+        <button type="button" class="btn btn-primary btn-open-selector">
+          Agregar nominados desde catálogo
+        </button>
+      `;
     }
+
     const isOpen = state.openPlateIds.has(plate.id);
 
     collapseBody.classList.toggle("hidden", !isOpen);
@@ -616,13 +588,9 @@ async function handleCatalogActions(event) {
   }
 }
 
-function closeAllCatalogSelectors() {
-  catalogSelectorOverlay.classList.add("hidden");
-  document.body.style.overflow = "";
-  state.activeCatalogPlateId = null;
-}
-
 function openCatalogSelector(plateId) {
+  ensureCatalogSelectorDom();
+
   state.activeCatalogPlateId = plateId;
 
   if (!state.selectedCatalogByPlate[plateId]) {
@@ -634,11 +602,20 @@ function openCatalogSelector(plateId) {
   renderGlobalCatalogPicker("");
 
   catalogSelectorOverlay.classList.remove("hidden");
-
   document.body.style.overflow = "hidden";
 }
 
+function closeCatalogSelector() {
+  ensureCatalogSelectorDom();
+
+  catalogSelectorOverlay.classList.add("hidden");
+  document.body.style.overflow = "";
+  state.activeCatalogPlateId = null;
+}
+
 function renderGlobalCatalogPicker(search = "") {
+  ensureCatalogSelectorDom();
+
   const plate = state.plates.find(
     (p) => p.id === state.activeCatalogPlateId
   );
@@ -648,33 +625,27 @@ function renderGlobalCatalogPicker(search = "") {
     return;
   }
 
-  const selected =
-    state.selectedCatalogByPlate[plate.id] || [];
+  const selected = state.selectedCatalogByPlate[plate.id] || [];
 
-  const available = getAvailableCatalogForPlate(plate)
-    .filter((participant) =>
-      participant.displayName
-        .toLowerCase()
-        .includes(search.toLowerCase())
-    );
+  const available = getAvailableCatalogForPlate(plate).filter((participant) =>
+    String(participant.displayName || "")
+      .toLowerCase()
+      .includes(String(search || "").toLowerCase())
+  );
 
   catalogPickerList.innerHTML = available.length
     ? available
-      .map((participant) => {
-        const image =
-          participant.imageUrl ||
-          "https://placehold.co/92x92/png?text=P";
+        .map((participant) => {
+          const image =
+            participant.imageUrl || "https://placehold.co/92x92/png?text=P";
 
-        return `
+          return `
             <label class="catalog-picker-item">
               <input
                 type="checkbox"
                 class="catalog-picker-checkbox"
                 value="${participant.id}"
-                ${selected.includes(participant.id)
-            ? "checked"
-            : ""
-          }
+                ${selected.includes(participant.id) ? "checked" : ""}
               />
 
               <img
@@ -688,8 +659,8 @@ function renderGlobalCatalogPicker(search = "") {
               </span>
             </label>
           `;
-      })
-      .join("")
+        })
+        .join("")
     : `
       <div class="catalog-dropdown-empty">
         No hay participantes disponibles para agregar.
@@ -698,44 +669,29 @@ function renderGlobalCatalogPicker(search = "") {
 }
 
 async function handlePlateActions(event) {
-  const openSelectorBtn =
-    event.target.closest(".btn-open-selector");
+  const openSelectorBtn = event.target.closest(".btn-open-selector");
 
   if (openSelectorBtn) {
-    const plateCard =
-      openSelectorBtn.closest(
-        ".plate-card-admin-collapsible"
-      );
+    const plateCard = openSelectorBtn.closest(".plate-card-admin-collapsible");
 
     if (!plateCard) return;
 
     openCatalogSelector(plateCard.dataset.plateId);
-
     return;
   }
 
-  const plateCard =
-    event.target.closest(
-      ".plate-card-admin-collapsible"
-    );
+  const plateCard = event.target.closest(".plate-card-admin-collapsible");
 
   if (!plateCard) return;
 
   const plateId = plateCard.dataset.plateId;
-
-  const messageEl =
-    plateCard.querySelector(".plate-admin-message");
+  const messageEl = plateCard.querySelector(".plate-admin-message");
 
   clearMessage(messageEl);
 
-  const removeButton =
-    event.target.closest(".btn-remove-nominee");
-
-  const resultsButton =
-    event.target.closest(".btn-load-results");
-
-  const deletePlateButton =
-    event.target.closest(".btn-delete-plate");
+  const removeButton = event.target.closest(".btn-remove-nominee");
+  const resultsButton = event.target.closest(".btn-load-results");
+  const deletePlateButton = event.target.closest(".btn-delete-plate");
 
   if (removeButton) {
     try {
@@ -748,69 +704,49 @@ async function handlePlateActions(event) {
         }
       );
 
-      setMessage(
-        messageEl,
-        "Nominado eliminado."
-      );
+      setMessage(messageEl, "Nominado eliminado.");
 
       await loadPlates();
       await loadCatalog();
     } catch (error) {
-      setMessage(
-        messageEl,
-        error.message,
-        "error"
-      );
+      setMessage(messageEl, error.message, "error");
     }
 
     return;
   }
 
   if (resultsButton) {
-    const resultsBox =
-      plateCard.querySelector(".results-box");
-
-    const resultsList =
-      plateCard.querySelector(".results-list");
+    const resultsBox = plateCard.querySelector(".results-box");
+    const resultsList = plateCard.querySelector(".results-list");
 
     try {
       state.openPlateIds.add(plateId);
 
-      const data = await api(
-        `/api/admin/plates/${plateId}/results`
-      );
+      const data = await api(`/api/admin/plates/${plateId}/results`);
 
-      resultsList.innerHTML =
-        (data.results || []).length
-          ? data.results.map(resultRow).join("")
-          : `
-            <div class="empty-card">
-              <p>No hay votos todavía.</p>
-            </div>
-          `;
+      resultsList.innerHTML = (data.results || []).length
+        ? data.results.map(resultRow).join("")
+        : `
+          <div class="empty-card">
+            <p>No hay votos todavía.</p>
+          </div>
+        `;
 
       resultsBox.classList.remove("hidden");
     } catch (error) {
-      setMessage(
-        messageEl,
-        error.message,
-        "error"
-      );
+      setMessage(messageEl, error.message, "error");
     }
 
     return;
   }
 
   if (deletePlateButton) {
-    const confirmed = confirm(
-      "¿Eliminar esta placa y todos sus datos?"
-    );
+    const confirmed = confirm("¿Eliminar esta placa y todos sus datos?");
 
     if (!confirmed) return;
 
     try {
       state.openPlateIds.delete(plateId);
-
       delete state.selectedCatalogByPlate[plateId];
 
       await api(`/api/admin/plates/${plateId}`, {
@@ -820,11 +756,7 @@ async function handlePlateActions(event) {
       await loadPlates();
       await loadCatalog();
     } catch (error) {
-      setMessage(
-        messageEl,
-        error.message,
-        "error"
-      );
+      setMessage(messageEl, error.message, "error");
     }
   }
 }
@@ -866,9 +798,8 @@ async function handlePlateForms(event) {
   }
 }
 
-function handlePlateInputChange(event) {
-  const checkbox =
-    event.target.closest(".catalog-picker-checkbox");
+function handleCatalogPickerChange(event) {
+  const checkbox = event.target.closest(".catalog-picker-checkbox");
 
   if (!checkbox) return;
 
@@ -881,14 +812,8 @@ function handlePlateInputChange(event) {
   }
 
   if (checkbox.checked) {
-    if (
-      !state.selectedCatalogByPlate[plateId].includes(
-        checkbox.value
-      )
-    ) {
-      state.selectedCatalogByPlate[plateId].push(
-        checkbox.value
-      );
+    if (!state.selectedCatalogByPlate[plateId].includes(checkbox.value)) {
+      state.selectedCatalogByPlate[plateId].push(checkbox.value);
     }
   } else {
     state.selectedCatalogByPlate[plateId] =
@@ -898,10 +823,37 @@ function handlePlateInputChange(event) {
   }
 }
 
-function handleCatalogSearch(event) {
-  if (event.target !== catalogSearchInput) return;
+async function confirmCatalogSelection() {
+  const plateId = state.activeCatalogPlateId;
 
-  renderGlobalCatalogPicker(event.target.value);
+  if (!plateId) return;
+
+  const selectedIds = state.selectedCatalogByPlate[plateId] || [];
+
+  if (!selectedIds.length) {
+    alert("Seleccioná participantes del catálogo.");
+    return;
+  }
+
+  try {
+    state.openPlateIds.add(plateId);
+
+    await api(`/api/admin/plates/${plateId}/nominees/from-catalog`, {
+      method: "POST",
+      body: JSON.stringify({
+        participantIds: selectedIds,
+      }),
+    });
+
+    state.selectedCatalogByPlate[plateId] = [];
+
+    closeCatalogSelector();
+
+    await loadPlates();
+    await loadCatalog();
+  } catch (error) {
+    alert(error.message);
+  }
 }
 
 async function logout() {
@@ -915,96 +867,64 @@ async function logout() {
   }
 }
 
-function escapeHtml(value) {
-  return String(value || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
 async function init() {
   try {
+    ensureCatalogSelectorDom();
+
     await loadSession();
     await Promise.all([loadCatalog(), loadPlates()]);
+
     setPanel("create");
   } catch (error) {
     console.error(error);
-    window.location.href = "/auth/login";
+
+    const isAuthError =
+      error.message?.toLowerCase().includes("auth") ||
+      error.message?.toLowerCase().includes("unauthorized") ||
+      error.message?.toLowerCase().includes("no autorizado");
+
+    if (isAuthError) {
+      window.location.href = "/auth/login";
+    }
   }
 }
 
-createPlateForm.addEventListener("submit", createPlate);
+createPlateForm?.addEventListener("submit", createPlate);
 catalogForm?.addEventListener("submit", createCatalogParticipant);
 
-platesList.addEventListener("click", handlePlateActions);
-platesList.addEventListener("submit", handlePlateForms);
-platesList.addEventListener("change", handlePlateInputChange);
-platesList.addEventListener("input", handleCatalogSearch);
+platesList?.addEventListener("click", handlePlateActions);
+platesList?.addEventListener("submit", handlePlateForms);
 
-catalogList.addEventListener("click", handleCatalogActions);
+catalogList?.addEventListener("click", handleCatalogActions);
 
 logoutBtn?.addEventListener("click", logout);
 
-closeCatalogSelectorBtn?.addEventListener("click", closeAllCatalogSelectors);
-
-catalogSelectorOverlay?.addEventListener("click", (event) => {
-  if (event.target === catalogSelectorOverlay) {
-    closeAllCatalogSelectors();
-  }
-});
-
-confirmCatalogSelectionBtn?.addEventListener("click", async () => {
-    const plateId =
-      state.activeCatalogPlateId;
-
-    if (!plateId) return;
-
-    const selectedIds =
-      state.selectedCatalogByPlate[plateId] || [];
-
-    if (!selectedIds.length) {
-      alert(
-        "Seleccioná participantes del catálogo."
-      );
-
-      return;
-    }
-
-    try {
-      state.openPlateIds.add(plateId);
-
-      await api(
-        `/api/admin/plates/${plateId}/nominees/from-catalog`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            participantIds: selectedIds,
-          }),
-        }
-      );
-
-      state.selectedCatalogByPlate[plateId] = [];
-
-      closeAllCatalogSelectors();
-
-      await loadPlates();
-      await loadCatalog();
-    } catch (error) {
-      alert(error.message);
-    }
-  }
-);
-
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
-    closeAllCatalogSelectors();
+    closeCatalogSelector();
   }
 });
 
 navButtons.forEach((btn) => {
   btn.addEventListener("click", () => setPanel(btn.dataset.panel));
 });
+
+ensureCatalogSelectorDom();
+
+closeCatalogSelectorBtn?.addEventListener("click", closeCatalogSelector);
+
+catalogSelectorOverlay?.addEventListener("click", (event) => {
+  if (event.target === catalogSelectorOverlay) {
+    closeCatalogSelector();
+  }
+});
+
+catalogSearchInput?.addEventListener("input", (event) => {
+  renderGlobalCatalogPicker(event.target.value);
+});
+
+catalogPickerList?.addEventListener("change", handleCatalogPickerChange);
+
+confirmCatalogSelectionBtn?.addEventListener("click", confirmCatalogSelection);
 
 init();
