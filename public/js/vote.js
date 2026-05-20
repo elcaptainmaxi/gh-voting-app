@@ -289,6 +289,17 @@ function onGridClick(event) {
 async function submitVote() {
   if (!state.selectedNominee || state.submitting) return;
 
+  const turnstileToken =
+    window.turnstile?.getResponse?.() || "";
+
+  if (!turnstileToken) {
+    setBanner(
+      "Completá la verificación anti-abuso antes de votar.",
+      "error"
+    );
+    return;
+  }
+
   state.submitting = true;
 
   confirmVoteBtn.disabled = true;
@@ -300,6 +311,7 @@ async function submitVote() {
       body: JSON.stringify({
         nomineeId: state.selectedNominee.id,
         fingerprint: visitorFingerprint,
+        turnstileToken,
       }),
     });
 
@@ -315,11 +327,15 @@ async function submitVote() {
 
     renderVoteStatus();
     renderPlate();
+
+    window.turnstile?.reset?.();
   } catch (err) {
     setBanner(
       err.message || "No se pudo registrar el voto.",
       "error"
     );
+
+    window.turnstile?.reset?.();
   } finally {
     state.submitting = false;
 

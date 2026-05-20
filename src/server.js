@@ -48,10 +48,19 @@ app.use(
           "https://images.unsplash.com",
           "https:",
         ],
-        "script-src": ["'self'", "https://openfpcdn.io"],
-        "script-src-elem": ["'self'", "https://openfpcdn.io"],
+        "script-src": [
+          "'self'",
+          "https://challenges.cloudflare.com",
+        ],
+        "frame-src": [
+          "'self'",
+          "https://challenges.cloudflare.com",
+        ],
+        "connect-src": [
+          "'self'",
+          "https://challenges.cloudflare.com",
+        ],
         "style-src": ["'self'", "'unsafe-inline'"],
-        "connect-src": ["'self'"],
       },
     },
   })

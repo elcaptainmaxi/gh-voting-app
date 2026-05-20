@@ -8,6 +8,38 @@ import { imageUpload } from "../middleware/upload.js";
 
 const router = Router();
 
+async function verifyTurnstile(token, ip) {
+  const secret = process.env.TURNSTILE_SECRET_KEY;
+
+  if (!secret) {
+    console.warn("TURNSTILE_SECRET_KEY no configurado.");
+    return true;
+  }
+
+  if (!token) {
+    return false;
+  }
+
+  const response = await fetch(
+    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        secret,
+        response: token,
+        remoteip: ip,
+      }),
+    }
+  );
+
+  const data = await response.json();
+
+  return Boolean(data.success);
+}
+
 function serializeUser(user, csrfToken) {
   return {
     user: {
@@ -135,7 +167,11 @@ router.get("/my-vote-status", async (req, res) => {
 });
 
 router.post("/vote", voteLimiter, async (req, res) => {
-  const { nomineeId, fingerprint } = req.body || {};
+  const {
+    nomineeId,
+    fingerprint,
+    turnstileToken,
+  } = req.body || {};
 
   if (!nomineeId || typeof nomineeId !== "string") {
     return res.status(400).json({ error: "Falta el nominado." });
@@ -171,6 +207,18 @@ router.post("/vote", voteLimiter, async (req, res) => {
   const clientIp = getClientIp(req);
   const voterIpHash = hashIp(clientIp);
   const fingerprintHash = getFingerprintHashFromValue(fingerprint);
+
+  const turnstileOk = await verifyTurnstile(
+    turnstileToken,
+    clientIp
+  );
+
+  if (!turnstileOk) {
+    return res.status(403).json({
+      error:
+        "Verificación anti-abuso fallida. Recargá la página e intentá de nuevo.",
+    });
+  }
 
   const voteCount = await prisma.vote.count({
     where: buildVoteLimitWhere({

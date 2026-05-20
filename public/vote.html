@@ -1,26 +1,28 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GH Voting - Votar</title>
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
+
 <body class="app-body">
   <header class="topbar">
-  <div class="brand">EclipseTV - Gran Hermano: New York</div>
+    <div class="brand">EclipseTV - Gran Hermano: New York</div>
 
-  <div class="topbar-right">
-    <a href="/admin" class="topbar-link">Admin</a>
-  </div>
+    <div class="topbar-right">
+      <a href="/admin" class="topbar-link">Admin</a>
+    </div>
 
-  <meta property="og:title" content="Gran Hermano: New York - Votación" />
-  <meta property="og:description" content="Votá en la placa actual." />
-  <meta property="og:image" content="https://eclipsetv.up.railway.app/assets/ghnylogo.png" />
-  <meta property="og:url" content="https://eclipsetv.up.railway.app/vote" />
-  <meta property="og:type" content="website" />
+    <meta property="og:title" content="Gran Hermano: New York - Votación" />
+    <meta property="og:description" content="Votá en la placa actual." />
+    <meta property="og:image" content="https://eclipsetv.up.railway.app/assets/ghnylogo.png" />
+    <meta property="og:url" content="https://eclipsetv.up.railway.app/vote" />
+    <meta property="og:type" content="website" />
 
-</header>
+  </header>
 
   <main class="page page-vote clean-vote-page">
     <section id="plateNoticeSection" class="hidden">
@@ -65,12 +67,15 @@
 
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" id="cancelVoteBtn">Cancelar</button>
+          <div id="turnstileWidget" class="cf-turnstile" data-sitekey="0x4AAAAAADS3BMrAlC3IrF8o" data-theme="dark"></div>
           <button type="button" class="btn btn-primary" id="confirmVoteBtn">Votar</button>
         </div>
       </div>
     </div>
   </div>
-  
+
   <script src="/js/vote.js" defer></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </body>
+
 </html>
