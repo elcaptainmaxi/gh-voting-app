@@ -1,0 +1,154 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+body {
+  min-height: 100vh;
+  background: #424253;
+  color: white;
+  padding: 28px;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 28px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+h1 {
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+button {
+  border: none;
+  cursor: pointer;
+  font-weight: 900;
+  border-radius: 12px;
+  padding: 12px 16px;
+  color: white;
+  background: #2f2f3b;
+}
+
+.primary {
+  background: #32c993;
+}
+
+.danger {
+  background: #df5261;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+}
+
+.card {
+  background: #30303b;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.card-top {
+  height: 215px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.name {
+  font-size: 15px;
+  font-weight: 900;
+  margin-bottom: 24px;
+}
+
+.count {
+  font-size: 92px;
+  line-height: 1;
+  color: #31cc96;
+  font-weight: 900;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+
+.controls button {
+  border-radius: 0;
+  background: transparent;
+  color: #9da0ad;
+  font-size: 32px;
+  padding: 18px;
+}
+
+.controls button:first-child {
+  border-right: 1px solid rgba(255,255,255,.08);
+}
+
+.remove-btn {
+  background: transparent;
+  color: #aaa;
+  padding: 8px;
+  font-size: 18px;
+  align-self: flex-end;
+}
+
+.modal-bg {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal-bg.show {
+  display: flex;
+}
+
+.modal {
+  width: 100%;
+  max-width: 420px;
+  background: #2f2f3b;
+  border-radius: 18px;
+  padding: 22px;
+}
+
+.modal h2 {
+  margin-bottom: 14px;
+}
+
+input {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: #24242e;
+  color: white;
+  outline: none;
+  font-size: 16px;
+  margin-bottom: 16px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
