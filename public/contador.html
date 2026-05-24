@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contador de Votos - Producción</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Inter, system-ui, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      background: #424253;
+      color: white;
+      padding: 28px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 28px;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 800;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: none;
+      cursor: pointer;
+      font-weight: 800;
+      border-radius: 12px;
+      padding: 12px 16px;
+      color: white;
+      background: #2f2f3b;
+      transition: 0.15s;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.1);
+    }
+
+    .primary {
+      background: #32c993;
+    }
+
+    .danger {
+      background: #d94f5c;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      background: #30303b;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 10px 22px rgba(0,0,0,.18);
+      border: 1px solid rgba(255,255,255,.05);
+    }
+
+    .card-top {
+      min-height: 170px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      padding: 20px;
+    }
+
+    .name {
+      font-size: 15px;
+      font-weight: 900;
+      margin-bottom: 22px;
+      text-align: center;
+    }
+
+    .count {
+      font-size: 92px;
+      line-height: 1;
+      color: #31cc96;
+      font-weight: 900;
+    }
+
+    .remove-counter {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: transparent;
+      color: #aaa;
+      font-size: 22px;
+      padding: 4px 8px;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-top: 1px solid rgba(255,255,255,.08);
+    }
+
+    .controls button {
+      border-radius: 0;
+      background: transparent;
+      color: #9da0ad;
+      font-size: 28px;
+      padding: 18px;
+    }
+
+    .controls button:first-child {
+      border-right: 1px solid rgba(255,255,255,.08);
+    }
+
+    .controls button:hover {
+      background: rgba(255,255,255,.06);
+      transform: none;
+    }
+
+    .modal-bg {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal {
+      width: 100%;
+      max-width: 420px;
+      background: #2f2f3b;
+      border-radius: 18px;
+      padding: 22px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35);
+    }
+
+    .modal h2 {
+      margin-bottom: 14px;
+      font-size: 20px;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: #24242e;
+      color: white;
+      outline: none;
+      font-size: 16px;
+      margin-bottom: 16px;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 16px;
+      }
+
+      .count {
+        font-size: 74px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Contador de Votos — Producción</h1>
+
+    <div class="actions">
+      <button class="primary" onclick="openModal()">Agregar contador</button>
+      <button onclick="resetAll()">Reiniciar votos</button>
+      <button class="danger" onclick="deleteAll()">Borrar todo</button>
+    </div>
+  </header>
+
+  <main class="grid" id="counterGrid"></main>
+
+  <div class="modal-bg" id="modalBg">
+    <div class="modal">
+      <h2>Nuevo contador</h2>
+      <input id="counterName" type="text" placeholder="Nombre del participante" />
+      <div class="modal-actions">
+        <button onclick="closeModal()">Cancelar</button>
+        <button class="primary" onclick="addCounter()">Crear</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let counters = JSON.parse(localStorage.getItem("productionCounters")) || [
+      { id: crypto.randomUUID(), name: "Abril", votes: 0 },
+      { id: crypto.randomUUID(), name: "Adriano", votes: 0 },
+      { id: crypto.randomUUID(), name: "Ben", votes: 0 }
+    ];
+
+    const grid = document.getElementById("counterGrid");
+    const modalBg = document.getElementById("modalBg");
+    const counterName = document.getElementById("counterName");
+
+    function save() {
+      localStorage.setItem("productionCounters", JSON.stringify(counters));
+    }
+
+    function render() {
+      grid.innerHTML = "";
+
+      counters.forEach(counter => {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        card.innerHTML = `
+          <div class="card-top">
+            <button class="remove-counter" onclick="removeCounter('${counter.id}')">⋮</button>
+            <div class="name">${counter.name}</div>
+            <div class="count">${counter.votes}</div>
+          </div>
+
+          <div class="controls">
+            <button onclick="changeVotes('${counter.id}', -1)">⊖</button>
+            <button onclick="changeVotes('${counter.id}', 1)">⊕</button>
+          </div>
+        `;
+
+        grid.appendChild(card);
+      });
+
+      save();
+    }
+
+    function changeVotes(id, amount) {
+      counters = counters.map(counter => {
+        if (counter.id === id) {
+          return {
+            ...counter,
+            votes: Math.max(0, counter.votes + amount)
+          };
+        }
+
+        return counter;
+      });
+
+      render();
+    }
+
+    function openModal() {
+      modalBg.style.display = "flex";
+      counterName.value = "";
+      setTimeout(() => counterName.focus(), 50);
+    }
+
+    function closeModal() {
+      modalBg.style.display = "none";
+    }
+
+    function addCounter() {
+      const name = counterName.value.trim();
+
+      if (!name) return;
+
+      counters.push({
+        id: crypto.randomUUID(),
+        name,
+        votes: 0
+      });
+
+      closeModal();
+      render();
+    }
+
+    function removeCounter(id) {
+      const counter = counters.find(c => c.id === id);
+      if (!counter) return;
+
+      const confirmDelete = confirm(`¿Eliminar el contador de ${counter.name}?`);
+      if (!confirmDelete) return;
+
+      counters = counters.filter(counter => counter.id !== id);
+      render();
+    }
+
+    function resetAll() {
+      const confirmReset = confirm("¿Reiniciar todos los votos a 0?");
+      if (!confirmReset) return;
+
+      counters = counters.map(counter => ({
+        ...counter,
+        votes: 0
+      }));
+
+      render();
+    }
+
+    function deleteAll() {
+      const confirmDelete = confirm("¿Borrar todos los contadores?");
+      if (!confirmDelete) return;
+
+      counters = [];
+      render();
+    }
+
+    counterName.addEventListener("keydown", e => {
+      if (e.key === "Enter") addCounter();
+      if (e.key === "Escape") closeModal();
+    });
+
+    modalBg.addEventListener("click", e => {
+      if (e.target === modalBg) closeModal();
+    });
+
+    render();
+  </script>
+</body>
+</html>
