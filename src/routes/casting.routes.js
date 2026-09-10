@@ -8,11 +8,44 @@ const router = Router();
 
 const QUESTION_KEYS = Array.from({ length: 30 }, (_, index) => `q${index + 1}`);
 const EDITABLE_QUESTION_KEYS = QUESTION_KEYS.filter((key) => !["q5", "q6"].includes(key));
+const LONG_QUESTION_KEYS = QUESTION_KEYS.filter((key) => Number(key.slice(1)) >= 7);
+const IMPORTANT_QUESTION_KEYS = new Set(["q8", "q16", "q17", "q18", "q21", "q26", "q27", "q29", "q30"]);
 const VALID_STATUSES = new Set(["PENDING", "APPROVED", "REJECTED"]);
+const VALID_CLASSIFICATIONS = new Set(["NONE", "FAVORITE", "REVIEW_AGAIN"]);
+
+function asyncRoute(handler) {
+  return async (req, res) => {
+    try {
+      await handler(req, res);
+    } catch (error) {
+      console.error("casting route error:", error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Ocurrió un error procesando el casting." });
+      }
+    }
+  };
+}
 
 function cleanText(value, maxLength = 6000) {
   if (typeof value !== "string") return "";
   return value.trim().slice(0, maxLength);
+}
+
+function countWords(value) {
+  return cleanText(value)
+    .split(/\s+/)
+    .filter((word) => /[\p{L}\p{N}]/u.test(word)).length;
+}
+
+function startsWithUppercase(value) {
+  const first = Array.from(cleanText(value))[0] || "";
+  return /\p{Lu}/u.test(first);
+}
+
+function answerRequirement(key) {
+  return IMPORTANT_QUESTION_KEYS.has(key)
+    ? { minChars: 120, minWords: 20 }
+    : { minChars: 80, minWords: 15 };
 }
 
 function publicUserIdentity(user) {
@@ -50,29 +83,57 @@ function buildAnswers(rawAnswers, user) {
 }
 
 function validateAnswers(answers) {
-  const missing = QUESTION_KEYS.filter((key) => !answers[key]);
+  const issues = {};
 
-  if (missing.length) {
-    return {
-      ok: false,
-      missing,
-      error: "Completá todas las preguntas antes de enviar la postulación.",
-    };
+  for (const key of QUESTION_KEYS) {
+    if (!answers[key]) issues[key] = "Esta pregunta es obligatoria.";
   }
 
-  const age = Number.parseInt(answers.q3, 10);
-  if (!Number.isInteger(age) || age < 13 || age > 99) {
-    return {
-      ok: false,
-      missing: ["q3"],
-      error: "Ingresá una edad válida.",
-    };
+  for (const key of ["q1", "q2"]) {
+    const value = answers[key] || "";
+    if (value && value.length < 2) {
+      issues[key] = "Debe tener al menos 2 caracteres.";
+    } else if (value && !startsWithUppercase(value)) {
+      issues[key] = "La primera letra debe estar en mayúscula.";
+    }
   }
 
-  return { ok: true, missing: [] };
+  const ageRaw = answers.q3 || "";
+  if (ageRaw && (!/^\d{2}$/.test(ageRaw) || Number(ageRaw) < 13 || Number(ageRaw) > 99)) {
+    issues.q3 = "La edad debe ser un número entero entre 13 y 99.";
+  }
+
+  if (answers.q4 && answers.q4.length < 2) {
+    issues.q4 = "Ingresá un país válido.";
+  }
+
+  for (const key of LONG_QUESTION_KEYS) {
+    const value = answers[key] || "";
+    if (!value) continue;
+    const { minChars, minWords } = answerRequirement(key);
+    const words = countWords(value);
+    if (value.length < minChars || words < minWords) {
+      issues[key] = `La respuesta debe tener al menos ${minChars} caracteres y ${minWords} palabras.`;
+    }
+  }
+
+  const invalidKeys = Object.keys(issues);
+  return {
+    ok: invalidKeys.length === 0,
+    invalidKeys,
+    issues,
+    error: invalidKeys.length ? "Revisá las respuestas marcadas antes de enviar la postulación." : null,
+  };
 }
 
-router.get("/casting/me", requireAuth, async (req, res) => {
+function reviewerIdentity(user) {
+  return {
+    userId: user.id,
+    name: user.globalName || user.username,
+  };
+}
+
+router.get("/casting/me", requireAuth, asyncRoute(async (req, res) => {
   const application = await prisma.castingApplication.findUnique({
     where: { userId: req.user.id },
     select: {
@@ -87,10 +148,15 @@ router.get("/casting/me", requireAuth, async (req, res) => {
     identity: publicUserIdentity(req.user),
     application,
     csrfToken: req.session.csrfToken,
+    validation: {
+      normal: { minChars: 80, minWords: 15 },
+      important: { minChars: 120, minWords: 20 },
+      importantQuestions: Array.from(IMPORTANT_QUESTION_KEYS),
+    },
   });
-});
+}));
 
-router.post("/casting/applications", requireAuth, requireCsrf, async (req, res) => {
+router.post("/casting/applications", requireAuth, requireCsrf, asyncRoute(async (req, res) => {
   const existing = await prisma.castingApplication.findUnique({
     where: { userId: req.user.id },
     select: { id: true, status: true, submittedAt: true },
@@ -106,6 +172,7 @@ router.post("/casting/applications", requireAuth, requireCsrf, async (req, res) 
   if (!req.user.robloxId) {
     return res.status(400).json({
       error: "Tenés que vincular tu cuenta de Roblox antes de enviar la postulación.",
+      invalidKeys: ["q6"],
     });
   }
 
@@ -136,20 +203,21 @@ router.post("/casting/applications", requireAuth, requireCsrf, async (req, res) 
         error: "Ya existe una postulación asociada a esta cuenta.",
       });
     }
-
-    console.error("casting submission error:", error);
-    return res.status(500).json({ error: "No se pudo enviar la postulación." });
+    throw error;
   }
-});
+}));
 
 router.use("/admin/casting", requireAuth, requireAdmin, adminLimiter);
 
-router.get("/admin/casting/applications", async (req, res) => {
+router.get("/admin/casting/applications", asyncRoute(async (req, res) => {
   const status = cleanText(req.query.status, 20).toUpperCase();
+  const classification = cleanText(req.query.classification, 30).toUpperCase();
   const search = cleanText(req.query.search, 120);
+  const sort = req.query.sort === "asc" ? "asc" : "desc";
 
   const where = {
     ...(VALID_STATUSES.has(status) ? { status } : {}),
+    ...(VALID_CLASSIFICATIONS.has(classification) ? { classification } : {}),
     ...(search
       ? {
           OR: [
@@ -164,37 +232,47 @@ router.get("/admin/casting/applications", async (req, res) => {
       : {}),
   };
 
-  const applications = await prisma.castingApplication.findMany({
-    where,
-    orderBy: { submittedAt: "desc" },
-    select: {
-      id: true,
-      status: true,
-      submittedAt: true,
-      reviewedAt: true,
-      updatedAt: true,
-      answers: true,
-      user: {
-        select: {
-          id: true,
-          discordId: true,
-          username: true,
-          globalName: true,
-          avatar: true,
-          robloxId: true,
-          robloxUsername: true,
-          robloxDisplayName: true,
-          robloxAvatar: true,
+  const [applications, total, pending, approved, rejected] = await prisma.$transaction([
+    prisma.castingApplication.findMany({
+      where,
+      orderBy: { submittedAt: sort },
+      select: {
+        id: true,
+        status: true,
+        classification: true,
+        submittedAt: true,
+        reviewedAt: true,
+        lastReviewedByName: true,
+        updatedAt: true,
+        answers: true,
+        user: {
+          select: {
+            id: true,
+            discordId: true,
+            username: true,
+            globalName: true,
+            avatar: true,
+            robloxId: true,
+            robloxUsername: true,
+            robloxDisplayName: true,
+            robloxAvatar: true,
+          },
         },
       },
-    },
-  });
+    }),
+    prisma.castingApplication.count(),
+    prisma.castingApplication.count({ where: { status: "PENDING" } }),
+    prisma.castingApplication.count({ where: { status: "APPROVED" } }),
+    prisma.castingApplication.count({ where: { status: "REJECTED" } }),
+  ]);
 
-  const rows = applications.map((application) => ({
+  let rows = applications.map((application) => ({
     id: application.id,
     status: application.status,
+    classification: application.classification,
     submittedAt: application.submittedAt,
     reviewedAt: application.reviewedAt,
+    lastReviewedByName: application.lastReviewedByName,
     updatedAt: application.updatedAt,
     applicant: {
       roleroName: application.answers?.q1 || "",
@@ -205,10 +283,29 @@ router.get("/admin/casting/applications", async (req, res) => {
     user: application.user,
   }));
 
-  return res.json({ applications: rows });
-});
+  if (search) {
+    const needle = search.toLocaleLowerCase("es");
+    rows = rows.filter((row) => {
+      const applicant = `${row.applicant.roleroName} ${row.applicant.roleroSurname}`.toLocaleLowerCase("es");
+      const externalMatches = [
+        row.user.username,
+        row.user.globalName,
+        row.user.discordId,
+        row.user.robloxUsername,
+        row.user.robloxDisplayName,
+        row.user.robloxId,
+      ].some((value) => String(value || "").toLocaleLowerCase("es").includes(needle));
+      return applicant.includes(needle) || externalMatches;
+    });
+  }
 
-router.get("/admin/casting/applications/:applicationId", async (req, res) => {
+  return res.json({
+    applications: rows,
+    metrics: { total, pending, approved, rejected },
+  });
+}));
+
+router.get("/admin/casting/applications/:applicationId", asyncRoute(async (req, res) => {
   const application = await prisma.castingApplication.findUnique({
     where: { id: req.params.applicationId },
     include: {
@@ -225,6 +322,10 @@ router.get("/admin/casting/applications/:applicationId", async (req, res) => {
           robloxAvatar: true,
         },
       },
+      reviewEvents: {
+        orderBy: { createdAt: "desc" },
+        take: 30,
+      },
     },
   });
 
@@ -233,57 +334,141 @@ router.get("/admin/casting/applications/:applicationId", async (req, res) => {
   }
 
   return res.json({ application });
-});
+}));
 
-router.patch("/admin/casting/applications/:applicationId", requireCsrf, async (req, res) => {
+router.patch("/admin/casting/applications/:applicationId", requireCsrf, asyncRoute(async (req, res) => {
   const { applicationId } = req.params;
   const requestedStatus = cleanText(req.body?.status, 20).toUpperCase();
+  const requestedClassification = cleanText(req.body?.classification, 30).toUpperCase();
   const hasStatus = req.body?.status !== undefined;
+  const hasClassification = req.body?.classification !== undefined;
   const hasNotes = req.body?.internalNotes !== undefined;
 
   if (hasStatus && !VALID_STATUSES.has(requestedStatus)) {
     return res.status(400).json({ error: "Estado de casting inválido." });
   }
 
-  if (!hasStatus && !hasNotes) {
+  if (hasClassification && !VALID_CLASSIFICATIONS.has(requestedClassification)) {
+    return res.status(400).json({ error: "Clasificación interna inválida." });
+  }
+
+  if (!hasStatus && !hasClassification && !hasNotes) {
     return res.status(400).json({ error: "No hay cambios para guardar." });
   }
 
   const existing = await prisma.castingApplication.findUnique({
     where: { id: applicationId },
-    select: { id: true, status: true },
+    select: { id: true, status: true, classification: true, internalNotes: true },
   });
 
   if (!existing) {
     return res.status(404).json({ error: "La postulación no existe." });
   }
 
+  const reviewer = reviewerIdentity(req.user);
   const statusChanged = hasStatus && requestedStatus !== existing.status;
+  const classificationChanged = hasClassification && requestedClassification !== existing.classification;
+  const notesValue = hasNotes ? cleanText(req.body.internalNotes, 12000) : existing.internalNotes;
+  const notesChanged = hasNotes && notesValue !== existing.internalNotes;
+  const changed = statusChanged || classificationChanged || notesChanged;
 
-  const application = await prisma.castingApplication.update({
-    where: { id: applicationId },
-    data: {
-      ...(hasStatus ? { status: requestedStatus } : {}),
-      ...(hasNotes ? { internalNotes: cleanText(req.body.internalNotes, 12000) } : {}),
-      ...(statusChanged ? { reviewedAt: new Date() } : {}),
-    },
-    include: {
-      user: {
-        select: {
-          discordId: true,
-          username: true,
-          globalName: true,
-          avatar: true,
-          robloxId: true,
-          robloxUsername: true,
-          robloxDisplayName: true,
-          robloxAvatar: true,
+  const events = [];
+  if (statusChanged) {
+    events.push({
+      applicationId,
+      reviewerUserId: reviewer.userId,
+      reviewerName: reviewer.name,
+      action: "STATUS_CHANGED",
+      fromValue: existing.status,
+      toValue: requestedStatus,
+    });
+  }
+  if (classificationChanged) {
+    events.push({
+      applicationId,
+      reviewerUserId: reviewer.userId,
+      reviewerName: reviewer.name,
+      action: "CLASSIFICATION_CHANGED",
+      fromValue: existing.classification,
+      toValue: requestedClassification,
+    });
+  }
+  if (notesChanged) {
+    events.push({
+      applicationId,
+      reviewerUserId: reviewer.userId,
+      reviewerName: reviewer.name,
+      action: "NOTES_UPDATED",
+      fromValue: null,
+      toValue: null,
+    });
+  }
+
+  const application = await prisma.$transaction(async (tx) => {
+    const updated = await tx.castingApplication.update({
+      where: { id: applicationId },
+      data: {
+        ...(hasStatus ? { status: requestedStatus } : {}),
+        ...(hasClassification ? { classification: requestedClassification } : {}),
+        ...(hasNotes ? { internalNotes: notesValue } : {}),
+        ...(changed
+          ? {
+              reviewedAt: new Date(),
+              lastReviewedByUserId: reviewer.userId,
+              lastReviewedByName: reviewer.name,
+            }
+          : {}),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            discordId: true,
+            username: true,
+            globalName: true,
+            avatar: true,
+            robloxId: true,
+            robloxUsername: true,
+            robloxDisplayName: true,
+            robloxAvatar: true,
+          },
         },
       },
-    },
+    });
+
+    if (events.length) {
+      await tx.castingReviewEvent.createMany({ data: events });
+    }
+
+    return updated;
   });
 
   return res.json({ application });
-});
+}));
+
+router.delete("/admin/casting/applications/:applicationId", requireCsrf, asyncRoute(async (req, res) => {
+  const existing = await prisma.castingApplication.findUnique({
+    where: { id: req.params.applicationId },
+    select: { id: true },
+  });
+
+  if (!existing) {
+    return res.status(404).json({ error: "La postulación no existe." });
+  }
+
+  await prisma.castingApplication.delete({ where: { id: existing.id } });
+  console.warn(`Casting ${existing.id} eliminado por ${req.user.globalName || req.user.username} (${req.user.discordId}).`);
+  return res.json({ success: true });
+}));
+
+router.delete("/admin/casting/applications", requireCsrf, asyncRoute(async (req, res) => {
+  if (req.body?.confirmation !== "ELIMINAR TODAS") {
+    return res.status(400).json({ error: "Confirmación inválida. Escribí ELIMINAR TODAS." });
+  }
+
+  const result = await prisma.castingApplication.deleteMany({});
+  console.warn(`${result.count} castings eliminados por ${req.user.globalName || req.user.username} (${req.user.discordId}).`);
+  return res.json({ success: true, deletedCount: result.count });
+}));
 
 export default router;
