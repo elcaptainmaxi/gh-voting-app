@@ -3,6 +3,8 @@ import axios from "axios";
 import prisma from "../lib/prisma.js";
 import { generateCsrfToken, getClientIp, hashIp } from "../lib/security.js";
 import { authLimiter } from "../middleware/rateLimiters.js";
+import { requireAuth } from "../middleware/auth.js";
+import { requireCsrf } from "../middleware/csrf.js";
 
 const router = Router();
 
@@ -262,6 +264,36 @@ router.get("/roblox/callback", authLimiter, async (req, res) => {
 
     console.error("Roblox OAuth callback error:", error?.response?.data || error);
     return res.status(500).send("Error durante la vinculación con Roblox.");
+  }
+});
+
+router.post("/roblox/unlink", requireAuth, requireCsrf, async (req, res) => {
+  try {
+    const application = await prisma.castingApplication.findUnique({
+      where: { userId: req.user.id },
+      select: { id: true },
+    });
+
+    if (application) {
+      return res.status(409).json({
+        error: "No podés desvincular Roblox después de enviar la postulación. Producción debe eliminarla primero si necesitás rehacer el casting.",
+      });
+    }
+
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        robloxId: null,
+        robloxUsername: null,
+        robloxDisplayName: null,
+        robloxAvatar: null,
+      },
+    });
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error("Roblox unlink error:", error);
+    return res.status(500).json({ error: "No se pudo desvincular la cuenta de Roblox." });
   }
 });
 
