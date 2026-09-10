@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0b0f14" />
+  <title>El Laboratorio · Casting</title>
+  <link rel="stylesheet" href="/css/casting.css" />
+</head>
+<body>
+  <main class="casting-shell">
+    <header class="casting-header">
+      <a class="brand" href="/casting" aria-label="El Laboratorio Casting">
+        <span class="brand-mark">EL</span>
+        <span>
+          <strong>EL LABORATORIO</strong>
+          <small>Convocatoria de sujetos</small>
+        </span>
+      </a>
+      <div id="accountSummary" class="account-summary" hidden></div>
+    </header>
+
+    <section class="hero">
+      <p class="eyebrow">CONVOCATORIA ABIERTA</p>
+      <h1>¿Estás dispuesto a entrar al experimento?</h1>
+      <p class="hero-copy">Buscamos roleros capaces de convivir, adaptarse, competir y tomar decisiones bajo presión durante una experiencia intensiva de 2 a 3 días.</p>
+    </section>
+
+    <section id="loginGate" class="panel login-gate" hidden>
+      <div>
+        <p class="eyebrow">IDENTIFICACIÓN REQUERIDA</p>
+        <h2>Primero vinculá tu Discord</h2>
+        <p>La cuenta de Discord se usa para identificar tu postulación y evitar envíos duplicados.</p>
+      </div>
+      <a class="button primary" href="/auth/login?returnTo=%2Fcasting">Conectar con Discord</a>
+    </section>
+
+    <section id="submittedState" class="panel submitted-state" hidden>
+      <span class="status-icon">✓</span>
+      <p class="eyebrow">POSTULACIÓN REGISTRADA</p>
+      <h2>Tu expediente ya está en manos de Producción.</h2>
+      <p id="submittedMeta"></p>
+    </section>
+
+    <section id="wizard" class="wizard" hidden>
+      <div class="wizard-progress" aria-label="Progreso del casting">
+        <div class="progress-topline">
+          <span id="stepLabel">Etapa 1 de 7</span>
+          <span id="progressPercent">14%</span>
+        </div>
+        <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+        <div id="sectionNav" class="section-nav"></div>
+      </div>
+
+      <form id="castingForm" class="panel casting-form" novalidate>
+        <div class="form-heading">
+          <p id="sectionKicker" class="eyebrow"></p>
+          <h2 id="sectionTitle"></h2>
+          <p id="sectionDescription" class="section-description"></p>
+        </div>
+
+        <div id="questionsContainer" class="questions"></div>
+        <p id="formError" class="form-error" role="alert" hidden></p>
+
+        <div class="wizard-actions">
+          <button id="previousButton" type="button" class="button secondary">Anterior</button>
+          <button id="nextButton" type="button" class="button primary">Siguiente</button>
+          <button id="submitButton" type="submit" class="button primary danger" hidden>Enviar postulación</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script src="/js/casting.js" defer></script>
+</body>
+</html>
