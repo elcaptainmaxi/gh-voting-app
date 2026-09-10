@@ -21,6 +21,12 @@ enum CastingStatus {
   REJECTED
 }
 
+enum CastingClassification {
+  NONE
+  FAVORITE
+  REVIEW_AGAIN
+}
+
 model User {
   id                 String   @id @default(cuid())
   discordId          String   @unique
@@ -110,17 +116,36 @@ model ParticipantCatalog {
 }
 
 model CastingApplication {
-  id            String        @id @default(cuid())
-  userId        String        @unique
-  status        CastingStatus @default(PENDING)
-  internalNotes String        @default("")
-  answers       Json
-  submittedAt   DateTime      @default(now())
-  reviewedAt    DateTime?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                   String                @id @default(cuid())
+  userId               String                @unique
+  status               CastingStatus         @default(PENDING)
+  classification       CastingClassification @default(NONE)
+  internalNotes        String                @default("")
+  answers              Json
+  submittedAt          DateTime              @default(now())
+  reviewedAt           DateTime?
+  lastReviewedByUserId String?
+  lastReviewedByName   String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewEvents         CastingReviewEvent[]
 
   @@index([status])
+  @@index([classification])
   @@index([submittedAt])
+}
+
+model CastingReviewEvent {
+  id             String   @id @default(cuid())
+  applicationId  String
+  reviewerUserId String
+  reviewerName   String
+  action         String
+  fromValue      String?
+  toValue        String?
+  createdAt      DateTime @default(now())
+  application    CastingApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, createdAt])
 }
