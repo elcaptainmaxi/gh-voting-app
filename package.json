@@ -5,11 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch src/server.js",
-    "start": "node ./node_modules/prisma/build/index.js migrate deploy && node src/server.js",
+    "start": "node scripts/deploy-migrations.js && node src/server.js",
     "postinstall": "node ./node_modules/prisma/build/index.js generate",
     "prisma:generate": "node ./node_modules/prisma/build/index.js generate",
     "prisma:migrate": "node ./node_modules/prisma/build/index.js migrate dev",
-    "prisma:deploy": "node ./node_modules/prisma/build/index.js migrate deploy",
+    "prisma:deploy": "node scripts/deploy-migrations.js",
     "db:seed": "node prisma/seed.js"
   },
   "dependencies": {
