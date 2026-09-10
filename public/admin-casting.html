@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#0b0f14" />
   <title>Producción · Casting El Laboratorio</title>
   <link rel="stylesheet" href="/css/admin-casting.css" />
+  <link rel="stylesheet" href="/css/admin-casting-enhancements.css" />
 </head>
 <body>
   <main class="admin-shell">
@@ -20,7 +21,7 @@
       </nav>
     </header>
 
-    <section class="toolbar card">
+    <section class="toolbar card expanded-toolbar">
       <label class="search-box">
         <span>Buscar</span>
         <input id="searchInput" type="search" placeholder="Nombre, Discord, Roblox o ID..." autocomplete="off" />
@@ -34,14 +35,34 @@
           <option value="REJECTED">Rechazado</option>
         </select>
       </label>
+      <label>
+        <span>Clasificación</span>
+        <select id="classificationFilter">
+          <option value="">Todas</option>
+          <option value="NONE">Sin marca</option>
+          <option value="FAVORITE">Favorito</option>
+          <option value="REVIEW_AGAIN">Revisar nuevamente</option>
+        </select>
+      </label>
+      <label>
+        <span>Orden</span>
+        <select id="sortFilter">
+          <option value="desc">Más recientes</option>
+          <option value="asc">Más antiguos</option>
+        </select>
+      </label>
       <button id="refreshButton" class="button secondary" type="button">Actualizar</button>
     </section>
 
-    <section class="summary-grid" aria-label="Resumen">
-      <article class="metric card"><span>Total visibles</span><strong id="totalMetric">0</strong></article>
+    <section class="summary-grid" aria-label="Resumen global">
+      <article class="metric card"><span>Total</span><strong id="totalMetric">0</strong></article>
       <article class="metric card"><span>Pendientes</span><strong id="pendingMetric">0</strong></article>
       <article class="metric card"><span>Aprobados</span><strong id="approvedMetric">0</strong></article>
       <article class="metric card"><span>Rechazados</span><strong id="rejectedMetric">0</strong></article>
+    </section>
+
+    <section class="danger-toolbar">
+      <button id="deleteAllButton" class="button danger-outline" type="button">Eliminar todas las postulaciones</button>
     </section>
 
     <section class="card table-card">
@@ -56,6 +77,7 @@
               <th>País / edad</th>
               <th>Enviado</th>
               <th>Estado</th>
+              <th>Marca</th>
               <th></th>
             </tr>
           </thead>
@@ -78,13 +100,21 @@
 
       <div id="detailIdentity" class="identity-grid"></div>
 
-      <section class="review-controls">
+      <section class="review-controls upgraded-review-controls">
         <label>
           <span>Estado</span>
           <select id="detailStatus">
             <option value="PENDING">Pendiente</option>
             <option value="APPROVED">Aprobado</option>
             <option value="REJECTED">Rechazado</option>
+          </select>
+        </label>
+        <label>
+          <span>Clasificación interna</span>
+          <select id="detailClassification">
+            <option value="NONE">Sin marca</option>
+            <option value="FAVORITE">Favorito</option>
+            <option value="REVIEW_AGAIN">Revisar nuevamente</option>
           </select>
         </label>
         <label class="notes-field">
@@ -97,6 +127,11 @@
         </div>
       </section>
 
+      <section class="review-meta card-soft">
+        <div><span>Última revisión</span><strong id="reviewedAt">—</strong></div>
+        <div><span>Revisado por</span><strong id="reviewedBy">—</strong></div>
+      </section>
+
       <section class="answers-section">
         <div class="answers-heading">
           <h3>Respuestas completas</h3>
@@ -104,6 +139,33 @@
         </div>
         <div id="answersList" class="answers-list"></div>
       </section>
+
+      <section class="audit-section">
+        <h3>Historial de revisión</h3>
+        <div id="auditList" class="audit-list"></div>
+      </section>
+
+      <section class="application-danger-zone">
+        <div>
+          <h3>Eliminar postulación</h3>
+          <p>La persona podrá volver a realizar el casting desde cero.</p>
+        </div>
+        <button id="deleteApplication" class="button danger-outline" type="button">Eliminar esta postulación</button>
+      </section>
+    </section>
+  </div>
+
+  <div id="deleteAllOverlay" class="overlay confirmation-overlay" hidden>
+    <section class="confirmation-modal card" role="dialog" aria-modal="true" aria-labelledby="deleteAllTitle">
+      <p class="eyebrow">ACCIÓN DESTRUCTIVA</p>
+      <h2 id="deleteAllTitle">Eliminar todas las postulaciones</h2>
+      <p>Esta acción eliminará todos los castings enviados. Para confirmar, escribí exactamente <strong>ELIMINAR TODAS</strong>.</p>
+      <input id="deleteAllConfirmation" type="text" autocomplete="off" placeholder="ELIMINAR TODAS" />
+      <div class="confirmation-actions">
+        <button id="cancelDeleteAll" class="button secondary" type="button">Cancelar</button>
+        <button id="confirmDeleteAll" class="button danger" type="button" disabled>Eliminar todas</button>
+      </div>
+      <p id="deleteAllMessage" class="destructive-message"></p>
     </section>
   </div>
 
