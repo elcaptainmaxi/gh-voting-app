@@ -33,6 +33,7 @@ const QUESTION_LABELS = {
 
 let csrfToken = "";
 let applications = [];
+let metrics = { total: 0, pending: 0, approved: 0, rejected: 0 };
 let currentApplication = null;
 let searchTimer = null;
 
@@ -41,7 +42,11 @@ const emptyState = document.querySelector("#emptyState");
 const panelMessage = document.querySelector("#panelMessage");
 const searchInput = document.querySelector("#searchInput");
 const statusFilter = document.querySelector("#statusFilter");
+const classificationFilter = document.querySelector("#classificationFilter");
+const sortFilter = document.querySelector("#sortFilter");
 const overlay = document.querySelector("#detailOverlay");
+const deleteAllOverlay = document.querySelector("#deleteAllOverlay");
+const deleteAllConfirmation = document.querySelector("#deleteAllConfirmation");
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -54,6 +59,18 @@ function escapeHtml(value) {
 
 function statusLabel(status) {
   return { PENDING: "Pendiente", APPROVED: "Aprobado", REJECTED: "Rechazado" }[status] || status;
+}
+
+function classificationLabel(value) {
+  return { NONE: "Sin marca", FAVORITE: "Favorito", REVIEW_AGAIN: "Revisar nuevamente" }[value] || value;
+}
+
+function actionLabel(action) {
+  return {
+    STATUS_CHANGED: "Cambió el estado",
+    CLASSIFICATION_CHANGED: "Cambió la clasificación",
+    NOTES_UPDATED: "Actualizó las notas internas",
+  }[action] || action;
 }
 
 function discordAvatar(user) {
@@ -71,6 +88,13 @@ function formatDate(value) {
   return value ? new Date(value).toLocaleString("es-AR") : "—";
 }
 
+function renderMetrics() {
+  document.querySelector("#totalMetric").textContent = metrics.total;
+  document.querySelector("#pendingMetric").textContent = metrics.pending;
+  document.querySelector("#approvedMetric").textContent = metrics.approved;
+  document.querySelector("#rejectedMetric").textContent = metrics.rejected;
+}
+
 function renderRows() {
   body.innerHTML = applications.map((application) => {
     const applicantName = `${application.applicant.roleroName} ${application.applicant.roleroSurname}`.trim() || "Sin nombre";
@@ -84,24 +108,23 @@ function renderRows() {
       <td>${escapeHtml(application.applicant.country || "—")}<div class="subtle">${escapeHtml(application.applicant.age || "—")} años</div></td>
       <td>${escapeHtml(formatDate(application.submittedAt))}</td>
       <td><span class="status ${application.status}">${statusLabel(application.status)}</span></td>
+      <td><span class="classification-badge ${application.classification}">${classificationLabel(application.classification)}</span></td>
       <td><button class="open-button" type="button" data-open="${application.id}">Abrir</button></td>
     </tr>`;
   }).join("");
 
   emptyState.hidden = applications.length > 0;
-  document.querySelector("#totalMetric").textContent = applications.length;
-  document.querySelector("#pendingMetric").textContent = applications.filter((item) => item.status === "PENDING").length;
-  document.querySelector("#approvedMetric").textContent = applications.filter((item) => item.status === "APPROVED").length;
-  document.querySelector("#rejectedMetric").textContent = applications.filter((item) => item.status === "REJECTED").length;
+  renderMetrics();
 }
 
 async function loadApplications() {
   panelMessage.hidden = true;
   const params = new URLSearchParams();
   const search = searchInput.value.trim();
-  const status = statusFilter.value;
   if (search) params.set("search", search);
-  if (status) params.set("status", status);
+  if (statusFilter.value) params.set("status", statusFilter.value);
+  if (classificationFilter.value) params.set("classification", classificationFilter.value);
+  params.set("sort", sortFilter.value);
 
   try {
     const response = await fetch(`/api/admin/casting/applications?${params.toString()}`);
@@ -116,7 +139,8 @@ async function loadApplications() {
 
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "No se pudieron cargar las postulaciones.");
-    applications = data.applications;
+    applications = data.applications || [];
+    metrics = data.metrics || metrics;
     renderRows();
   } catch (error) {
     panelMessage.textContent = error.message;
@@ -134,7 +158,34 @@ function identityCard(provider, user) {
   const id = isDiscord ? user.discordId : user.robloxId;
   const image = isDiscord ? discordAvatar(user) : user.robloxAvatar;
 
-  return `<article class="identity-card"><div class="provider">${provider.toUpperCase()}</div><div class="person">${avatarMarkup(image, isDiscord ? "D" : "R")}<div><strong>${escapeHtml(title)}</strong><span>${username ? `@${escapeHtml(username)} · ` : ""}${escapeHtml(id || "Sin ID")}</span></div></div></article>`;
+  return `<article class="identity-card">
+    <div class="provider">${provider.toUpperCase()}</div>
+    <div class="person">${avatarMarkup(image, isDiscord ? "D" : "R")}<div><strong>${escapeHtml(title)}</strong><span>${username ? `@${escapeHtml(username)}` : "Sin usuario vinculado"}</span></div></div>
+    <div class="copy-row"><span class="subtle">ID: ${escapeHtml(id || "—")}</span>${id ? `<button class="copy-button" type="button" data-copy="${escapeHtml(id)}">Copiar ID</button>` : ""}</div>
+  </article>`;
+}
+
+function auditValue(event) {
+  if (event.action === "STATUS_CHANGED") {
+    return `${statusLabel(event.fromValue)} → ${statusLabel(event.toValue)}`;
+  }
+  if (event.action === "CLASSIFICATION_CHANGED") {
+    return `${classificationLabel(event.fromValue)} → ${classificationLabel(event.toValue)}`;
+  }
+  return "";
+}
+
+function renderAudit(events = []) {
+  const auditList = document.querySelector("#auditList");
+  if (!events.length) {
+    auditList.innerHTML = `<div class="audit-item"><strong>Sin cambios registrados</strong><span>La postulación todavía no fue modificada por Producción.</span></div>`;
+    return;
+  }
+
+  auditList.innerHTML = events.map((event) => `<article class="audit-item">
+    <strong>${escapeHtml(actionLabel(event.action))}${auditValue(event) ? ` · ${escapeHtml(auditValue(event))}` : ""}</strong>
+    <span>${escapeHtml(event.reviewerName)} · ${escapeHtml(formatDate(event.createdAt))}</span>
+  </article>`).join("");
 }
 
 function renderDetail(application) {
@@ -145,13 +196,17 @@ function renderDetail(application) {
   document.querySelector("#detailTitle").textContent = rolero;
   document.querySelector("#detailIdentity").innerHTML = identityCard("Discord", application.user) + identityCard("Roblox", application.user);
   document.querySelector("#detailStatus").value = application.status;
+  document.querySelector("#detailClassification").value = application.classification || "NONE";
   document.querySelector("#internalNotes").value = application.internalNotes || "";
   document.querySelector("#submittedAt").textContent = `Enviado: ${formatDate(application.submittedAt)}`;
+  document.querySelector("#reviewedAt").textContent = formatDate(application.reviewedAt);
+  document.querySelector("#reviewedBy").textContent = application.lastReviewedByName || "—";
   document.querySelector("#saveMessage").textContent = "";
   document.querySelector("#answersList").innerHTML = Object.keys(QUESTION_LABELS).map((key) => {
     const number = key.slice(1);
     return `<article class="answer-card"><h4><span class="answer-number">${number}.</span>${escapeHtml(QUESTION_LABELS[key])}</h4><p>${escapeHtml(answers[key] || "—")}</p></article>`;
   }).join("");
+  renderAudit(application.reviewEvents || []);
   overlay.hidden = false;
   document.body.style.overflow = "hidden";
 }
@@ -191,14 +246,15 @@ async function saveReview() {
       },
       body: JSON.stringify({
         status: document.querySelector("#detailStatus").value,
+        classification: document.querySelector("#detailClassification").value,
         internalNotes: document.querySelector("#internalNotes").value,
       }),
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "No se pudo guardar la revisión.");
-    currentApplication = data.application;
     message.textContent = "Guardado.";
     await loadApplications();
+    await openApplication(currentApplication.id);
   } catch (error) {
     message.textContent = error.message;
   } finally {
@@ -206,7 +262,90 @@ async function saveReview() {
   }
 }
 
+async function deleteCurrentApplication() {
+  if (!currentApplication) return;
+  const name = `${currentApplication.answers?.q1 || ""} ${currentApplication.answers?.q2 || ""}`.trim() || "esta persona";
+  if (!window.confirm(`¿Eliminar la postulación de ${name}? Podrá volver a realizar el casting desde cero.`)) return;
+
+  const button = document.querySelector("#deleteApplication");
+  button.disabled = true;
+  try {
+    const response = await fetch(`/api/admin/casting/applications/${encodeURIComponent(currentApplication.id)}`, {
+      method: "DELETE",
+      headers: { "x-csrf-token": csrfToken },
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "No se pudo eliminar la postulación.");
+    closeDetail();
+    await loadApplications();
+  } catch (error) {
+    window.alert(error.message);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function openDeleteAll() {
+  deleteAllConfirmation.value = "";
+  document.querySelector("#confirmDeleteAll").disabled = true;
+  document.querySelector("#deleteAllMessage").textContent = "";
+  deleteAllOverlay.hidden = false;
+  deleteAllConfirmation.focus();
+}
+
+function closeDeleteAll() {
+  deleteAllOverlay.hidden = true;
+}
+
+async function deleteAllApplications() {
+  const confirmation = deleteAllConfirmation.value;
+  if (confirmation !== "ELIMINAR TODAS") return;
+  const button = document.querySelector("#confirmDeleteAll");
+  const message = document.querySelector("#deleteAllMessage");
+  button.disabled = true;
+  message.textContent = "Eliminando...";
+
+  try {
+    const response = await fetch("/api/admin/casting/applications", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        "x-csrf-token": csrfToken,
+      },
+      body: JSON.stringify({ confirmation }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "No se pudieron eliminar las postulaciones.");
+    closeDeleteAll();
+    panelMessage.textContent = `Se eliminaron ${data.deletedCount} postulaciones.`;
+    panelMessage.className = "panel-message";
+    panelMessage.hidden = false;
+    await loadApplications();
+  } catch (error) {
+    message.textContent = error.message;
+    button.disabled = false;
+  }
+}
+
+async function copyText(value, button) {
+  try {
+    await navigator.clipboard.writeText(value);
+    const original = button.textContent;
+    button.textContent = "Copiado";
+    setTimeout(() => { button.textContent = original; }, 1200);
+  } catch {
+    window.prompt("Copiá el ID:", value);
+  }
+}
+
 body.addEventListener("click", (event) => {
+  const copy = event.target.closest("[data-copy]");
+  if (copy) {
+    event.stopPropagation();
+    copyText(copy.dataset.copy, copy);
+    return;
+  }
+
   const trigger = event.target.closest("[data-open]") || event.target.closest("tr[data-id]");
   if (!trigger) return;
   openApplication(trigger.dataset.open || trigger.dataset.id);
@@ -214,10 +353,24 @@ body.addEventListener("click", (event) => {
 
 document.querySelector("#closeDetail").addEventListener("click", closeDetail);
 overlay.addEventListener("click", (event) => { if (event.target === overlay) closeDetail(); });
-document.addEventListener("keydown", (event) => { if (event.key === "Escape" && !overlay.hidden) closeDetail(); });
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  if (!deleteAllOverlay.hidden) closeDeleteAll();
+  else if (!overlay.hidden) closeDetail();
+});
 document.querySelector("#saveReview").addEventListener("click", saveReview);
+document.querySelector("#deleteApplication").addEventListener("click", deleteCurrentApplication);
 document.querySelector("#refreshButton").addEventListener("click", loadApplications);
+document.querySelector("#deleteAllButton").addEventListener("click", openDeleteAll);
+document.querySelector("#cancelDeleteAll").addEventListener("click", closeDeleteAll);
+document.querySelector("#confirmDeleteAll").addEventListener("click", deleteAllApplications);
+deleteAllOverlay.addEventListener("click", (event) => { if (event.target === deleteAllOverlay) closeDeleteAll(); });
+deleteAllConfirmation.addEventListener("input", () => {
+  document.querySelector("#confirmDeleteAll").disabled = deleteAllConfirmation.value !== "ELIMINAR TODAS";
+});
 statusFilter.addEventListener("change", loadApplications);
+classificationFilter.addEventListener("change", loadApplications);
+sortFilter.addEventListener("change", loadApplications);
 searchInput.addEventListener("input", () => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(loadApplications, 250);
