@@ -8,8 +8,8 @@ const sections = [
       { key: "q2", label: "Apellido Rolero", type: "text", max: 100 },
       { key: "q3", label: "Edad Real", type: "number", min: 13, max: 99 },
       { key: "q4", label: "País Real", type: "text", max: 100 },
-      { key: "q5", label: "Conectar con Discord usando auth", type: "discord" },
-      { key: "q6", label: "Conectar con Roblox usando auth", type: "roblox" },
+      { key: "q5", label: "Conectar con Discord mediante el sistema de autenticación/auth existente.", type: "discord" },
+      { key: "q6", label: "Conectar con Roblox mediante auth.", type: "roblox" },
       { key: "q7", label: "¿Podrás participar durante los 2 o 3 días completos que dure el reality? Explicá tu disponibilidad.", type: "textarea" },
     ],
   },
@@ -19,10 +19,10 @@ const sections = [
     description: "Queremos entender cómo sos antes de verte bajo presión.",
     questions: [
       { key: "q8", label: "Describite en cinco palabras. Luego explicá por qué elegiste cada una.", type: "textarea" },
-      { key: "q9", label: "¿Cómo reaccionás normalmente cuando estás bajo mucha presión?", type: "textarea" },
-      { key: "q10", label: "¿Cuál considerás que es tu mayor fortaleza personal dentro de un grupo?", type: "textarea" },
-      { key: "q11", label: "¿Cuál es tu mayor debilidad y cómo podría perjudicarte dentro del reality?", type: "textarea" },
-      { key: "q12", label: "¿Qué rasgo de tu personalidad creés que podría generar conflicto con otros participantes?", type: "textarea" },
+      { key: "q9", label: "¿Qué aspecto de tu personalidad creés que más sorprendería a alguien que recién te conoce?", type: "textarea" },
+      { key: "q10", label: "¿Cuál considerás que es tu mayor virtud dentro de un grupo?", type: "textarea" },
+      { key: "q11", label: "¿Cuál es el defecto que más podría perjudicarte dentro del reality?", type: "textarea" },
+      { key: "q12", label: "Cuando cometés un error importante, ¿cómo reaccionás normalmente?", type: "textarea" },
     ],
   },
   {
@@ -30,10 +30,10 @@ const sections = [
     title: "Convivencia",
     description: "El Laboratorio también mide vínculos, fricción y adaptación social.",
     questions: [
-      { key: "q13", label: "¿Cómo actuás cuando tenés que convivir con alguien que no soportás?", type: "textarea" },
-      { key: "q14", label: "Si una persona cercana dentro del reality amenaza tu juego, ¿priorizarías el vínculo o tu permanencia? Explicá.", type: "textarea" },
-      { key: "q15", label: "¿Qué rol solés ocupar naturalmente dentro de un grupo?", type: "textarea" },
-      { key: "q16", label: "¿Qué situación de convivencia sería la más capaz de sacarte de quicio?", type: "textarea" },
+      { key: "q13", label: "Un participante comienza a hablar mal de vos con varias personas de la casa. ¿Cuál sería tu primera reacción?", type: "textarea" },
+      { key: "q14", label: "Dos de tus aliados empiezan a pelearse entre ellos. Ambos quieren que te pongas de su lado. ¿Qué hacés?", type: "textarea" },
+      { key: "q15", label: "¿Qué actitud de otra persona no soportarías durante la convivencia?", type: "textarea" },
+      { key: "q16", label: "Contanos un conflicto real que hayas tenido y cómo terminó.", type: "textarea" },
     ],
   },
   {
@@ -41,9 +41,9 @@ const sections = [
     title: "Estrategia",
     description: "No buscamos una única forma de jugar: buscamos entender la tuya.",
     questions: [
-      { key: "q17", label: "¿Entrarías con una estrategia definida desde el principio o preferirías adaptarte sobre la marcha? ¿Por qué?", type: "textarea" },
-      { key: "q18", label: "Descubrís que un aliado está planeando eliminarte. ¿Qué harías?", type: "textarea" },
-      { key: "q19", label: "¿Qué tipo de jugador creés que serías?", help: "Por ejemplo: Líder, Estratega, Social, Competitivo, Provocador, Mediador u Otro. Explicá por qué.", type: "textarea" },
+      { key: "q17", label: "El primer día todos están formando grupos. ¿Cómo decidirías con quién juntarte? Explicá tu razonamiento.", type: "textarea" },
+      { key: "q18", label: "Si tu estrategia inicial fracasa completamente durante el primer día, ¿cómo intentarías recuperarte?", type: "textarea" },
+      { key: "q19", label: "¿Qué tipo de jugador creés que serías?", help: "Opciones orientativas: Líder, Estratega, Social, Competitivo, Provocador, Mediador u Otro. Después explicá por qué.", type: "textarea" },
       { key: "q20", label: "¿Cuál sería el mayor error estratégico que podrías cometer dentro del juego?", type: "textarea" },
       { key: "q21", label: "¿Qué cosas estarías dispuesto a hacer para ganar? ¿Y qué cosas nunca harías?", type: "textarea" },
     ],
@@ -53,10 +53,10 @@ const sections = [
     title: "Juego social",
     description: "Percepción, manipulación y reputación pueden cambiar una partida completa.",
     questions: [
-      { key: "q22", label: "¿Qué secreto, información o ventaja intentarías guardar si supieras que podría cambiar el juego?", type: "textarea" },
-      { key: "q23", label: "Si el resto empieza a verte como una amenaza, ¿cómo intentarías cambiar esa percepción?", type: "textarea" },
-      { key: "q24", label: "¿Cómo reaccionarías si descubrís que alguien te estuvo manipulando para beneficiar su propio juego?", type: "textarea" },
-      { key: "q25", label: "Si tuvieras que elegir, ¿preferirías ser querido o ser temido dentro del reality? Explicá.", type: "textarea" },
+      { key: "q22", label: "Si descubrieras un secreto que podría cambiar completamente el juego, ¿qué harías con esa información?", type: "textarea" },
+      { key: "q23", label: "Si todos creen que sos una amenaza, ¿cómo intentarías cambiar esa percepción?", type: "textarea" },
+      { key: "q24", label: "Si alguien consigue manipularte, ¿cómo reaccionarías cuando lo descubras?", type: "textarea" },
+      { key: "q25", label: "¿Preferís ser querido por todos o que te teman como jugador? ¿Por qué?", type: "textarea" },
     ],
   },
   {
@@ -64,10 +64,10 @@ const sections = [
     title: "El Laboratorio",
     description: "Ahora queremos saber qué significaría para vos formar parte del experimento.",
     questions: [
-      { key: "q26", label: "¿Por qué querés participar de El Laboratorio?", type: "textarea" },
-      { key: "q27", label: "¿Qué creés que aportarías al reality que otro postulante no podría aportar?", type: "textarea" },
-      { key: "q28", label: "Imaginá que presenciás la primera eliminación del experimento. ¿Cómo creés que reaccionarías?", type: "textarea" },
-      { key: "q29", label: "Imaginá que llegaste a la final. ¿Qué pensás que hiciste para conseguirlo?", type: "textarea" },
+      { key: "q26", label: "¿Por qué querés participar en El Laboratorio?", type: "textarea" },
+      { key: "q27", label: "¿Qué creés que aportarías al programa que otros participantes quizás no puedan aportar?", type: "textarea" },
+      { key: "q28", label: "Imaginá que sos eliminado en la primera eliminación. ¿Cómo reaccionarías?", type: "textarea" },
+      { key: "q29", label: "Imaginá que llegás a la final. ¿Qué creés que hizo que llegaras hasta ahí?", type: "textarea" },
     ],
   },
   {
@@ -75,7 +75,7 @@ const sections = [
     title: "Última evaluación",
     description: "Una última respuesta antes de cerrar tu expediente.",
     questions: [
-      { key: "q30", label: "Después de leer toda tu postulación, ¿qué es lo principal que querés que Producción recuerde de vos?", type: "textarea" },
+      { key: "q30", label: "Si Producción solo pudiera recordar una cosa de vos después de leer este casting, ¿qué te gustaría que fuera?", type: "textarea" },
     ],
   },
 ];
@@ -269,11 +269,15 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
+function statusLabel(status) {
+  return { PENDING: "Pendiente", APPROVED: "Aprobado", REJECTED: "Rechazado" }[status] || status;
+}
+
 function showSubmitted(application) {
   wizard.hidden = true;
   submittedState.hidden = false;
   const date = new Date(application.submittedAt);
-  document.querySelector("#submittedMeta").textContent = `Enviada el ${date.toLocaleString("es-AR")} · Estado: Pendiente`;
+  document.querySelector("#submittedMeta").textContent = `Enviada el ${date.toLocaleString("es-AR")} · Estado: ${statusLabel(application.status)}`;
 }
 
 async function init() {
