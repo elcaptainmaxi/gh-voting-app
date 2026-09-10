@@ -14,6 +14,7 @@ import apiRoutes from "./routes/api.routes.js";
 import castingRoutes from "./routes/casting.routes.js";
 import { env, isProduction } from "./config/env.js";
 import { globalLimiter } from "./middleware/rateLimiters.js";
+import { requireAuth } from "./middleware/auth.js";
 
 const uploadsDir = process.env.UPLOAD_DIR || "/app/uploads";
 
@@ -100,6 +101,32 @@ app.use("/auth", authRoutes);
 app.use("/api", apiRoutes);
 app.use("/api", castingRoutes);
 
+function requireAdminPage(req, res, next) {
+  if (!req.session?.userId) {
+    return res.redirect("/auth/login?returnTo=%2Fadmin%2Fcasting");
+  }
+
+  return requireAuth(req, res, () => {
+    if (!req.user?.isAdmin) {
+      return res.redirect("/");
+    }
+    next();
+  });
+}
+
+// El HTML de Producción también se protege en servidor, antes de express.static.
+app.get("/admin/casting", requireAdminPage, (_req, res) => {
+  res.sendFile(path.join(__dirname, "../public/admin-casting.html"));
+});
+
+app.get("/admin-casting.html", requireAdminPage, (_req, res) => {
+  res.redirect("/admin/casting");
+});
+
+app.get("/admin/casting.html", requireAdminPage, (_req, res) => {
+  res.redirect("/admin/casting");
+});
+
 // Archivos estáticos: CSS, JS, assets, imágenes.
 app.use(express.static(path.join(__dirname, "../public")));
 
@@ -114,10 +141,6 @@ app.get("/admin.html", (_req, res) => {
 
 app.get("/casting.html", (_req, res) => {
   res.redirect("/casting");
-});
-
-app.get("/admin/casting.html", (_req, res) => {
-  res.redirect("/admin/casting");
 });
 
 // Rutas limpias.
@@ -135,10 +158,6 @@ app.get("/casting", (_req, res) => {
 
 app.get("/admin", (_req, res) => {
   res.sendFile(path.join(__dirname, "../public/admin.html"));
-});
-
-app.get("/admin/casting", (_req, res) => {
-  res.sendFile(path.join(__dirname, "../public/admin-casting.html"));
 });
 
 app.get("/health", (_req, res) => {
