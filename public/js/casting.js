@@ -85,6 +85,9 @@ let answers = {};
 let castingState = null;
 let submitting = false;
 
+const loadingState = document.querySelector("#loadingState");
+const loadErrorState = document.querySelector("#loadErrorState");
+const loadErrorMessage = document.querySelector("#loadErrorMessage");
 const wizard = document.querySelector("#wizard");
 const loginGate = document.querySelector("#loginGate");
 const submittedState = document.querySelector("#submittedState");
@@ -95,6 +98,14 @@ const previousButton = document.querySelector("#previousButton");
 const nextButton = document.querySelector("#nextButton");
 const submitButton = document.querySelector("#submitButton");
 const formError = document.querySelector("#formError");
+
+function showOnly(state) {
+  loadingState.hidden = state !== "loading";
+  loadErrorState.hidden = state !== "error";
+  loginGate.hidden = state !== "login";
+  submittedState.hidden = state !== "submitted";
+  wizard.hidden = state !== "wizard";
+}
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -274,22 +285,26 @@ function statusLabel(status) {
 }
 
 function showSubmitted(application) {
-  wizard.hidden = true;
-  submittedState.hidden = false;
+  showOnly("submitted");
   const date = new Date(application.submittedAt);
   document.querySelector("#submittedMeta").textContent = `Enviada el ${date.toLocaleString("es-AR")} · Estado: ${statusLabel(application.status)}`;
 }
 
 async function init() {
+  showOnly("loading");
+
   try {
     const response = await fetch("/api/casting/me", { headers: { Accept: "application/json" } });
+
     if (response.status === 401) {
-      loginGate.hidden = false;
+      showOnly("login");
       return;
     }
 
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "No se pudo cargar el casting.");
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || `No se pudo cargar el casting (HTTP ${response.status}).`);
+    }
 
     castingState = data;
     const discordName = data.identity.discord.globalName || data.identity.discord.username;
@@ -301,11 +316,11 @@ async function init() {
       return;
     }
 
-    wizard.hidden = false;
+    showOnly("wizard");
     render();
   } catch (error) {
-    loginGate.hidden = false;
-    loginGate.querySelector("p:last-child").textContent = error.message;
+    loadErrorMessage.textContent = error.message || "No se pudo verificar tu sesión. Recargá la página e intentá nuevamente.";
+    showOnly("error");
   }
 }
 
