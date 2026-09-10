@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0b0f14" />
+  <title>Producción · Casting El Laboratorio</title>
+  <link rel="stylesheet" href="/css/admin-casting.css" />
+</head>
+<body>
+  <main class="admin-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">PRODUCCIÓN</p>
+        <h1>Casting · El Laboratorio</h1>
+      </div>
+      <nav>
+        <a href="/admin" class="ghost-link">Panel de votación</a>
+        <a href="/casting" class="ghost-link">Ver casting público</a>
+      </nav>
+    </header>
+
+    <section class="toolbar card">
+      <label class="search-box">
+        <span>Buscar</span>
+        <input id="searchInput" type="search" placeholder="Nombre, Discord, Roblox o ID..." autocomplete="off" />
+      </label>
+      <label>
+        <span>Estado</span>
+        <select id="statusFilter">
+          <option value="">Todos</option>
+          <option value="PENDING">Pendiente</option>
+          <option value="APPROVED">Aprobado</option>
+          <option value="REJECTED">Rechazado</option>
+        </select>
+      </label>
+      <button id="refreshButton" class="button secondary" type="button">Actualizar</button>
+    </section>
+
+    <section class="summary-grid" aria-label="Resumen">
+      <article class="metric card"><span>Total visibles</span><strong id="totalMetric">0</strong></article>
+      <article class="metric card"><span>Pendientes</span><strong id="pendingMetric">0</strong></article>
+      <article class="metric card"><span>Aprobados</span><strong id="approvedMetric">0</strong></article>
+      <article class="metric card"><span>Rechazados</span><strong id="rejectedMetric">0</strong></article>
+    </section>
+
+    <section class="card table-card">
+      <div id="panelMessage" class="panel-message" hidden></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Postulante</th>
+              <th>Discord</th>
+              <th>Roblox</th>
+              <th>País / edad</th>
+              <th>Enviado</th>
+              <th>Estado</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="applicationsBody"></tbody>
+        </table>
+      </div>
+      <div id="emptyState" class="empty-state" hidden>No hay postulaciones que coincidan con los filtros.</div>
+    </section>
+  </main>
+
+  <div id="detailOverlay" class="overlay" hidden>
+    <section class="detail-drawer" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+      <header class="detail-header">
+        <div>
+          <p class="eyebrow">EXPEDIENTE DE SUJETO</p>
+          <h2 id="detailTitle">Postulación</h2>
+        </div>
+        <button id="closeDetail" class="icon-button" type="button" aria-label="Cerrar">×</button>
+      </header>
+
+      <div id="detailIdentity" class="identity-grid"></div>
+
+      <section class="review-controls">
+        <label>
+          <span>Estado</span>
+          <select id="detailStatus">
+            <option value="PENDING">Pendiente</option>
+            <option value="APPROVED">Aprobado</option>
+            <option value="REJECTED">Rechazado</option>
+          </select>
+        </label>
+        <label class="notes-field">
+          <span>Notas internas de Producción</span>
+          <textarea id="internalNotes" placeholder="Solo visible para Producción..."></textarea>
+        </label>
+        <div class="save-row">
+          <span id="saveMessage"></span>
+          <button id="saveReview" class="button primary" type="button">Guardar revisión</button>
+        </div>
+      </section>
+
+      <section class="answers-section">
+        <div class="answers-heading">
+          <h3>Respuestas completas</h3>
+          <span id="submittedAt"></span>
+        </div>
+        <div id="answersList" class="answers-list"></div>
+      </section>
+    </section>
+  </div>
+
+  <script src="/js/admin-casting.js" defer></script>
+</body>
+</html>
