@@ -11,6 +11,7 @@ import { fileURLToPath } from "url";
 
 import authRoutes from "./routes/auth.routes.js";
 import apiRoutes from "./routes/api.routes.js";
+import castingRoutes from "./routes/casting.routes.js";
 import { env, isProduction } from "./config/env.js";
 import { globalLimiter } from "./middleware/rateLimiters.js";
 
@@ -97,6 +98,7 @@ app.use(
 
 app.use("/auth", authRoutes);
 app.use("/api", apiRoutes);
+app.use("/api", castingRoutes);
 
 // Archivos estáticos: CSS, JS, assets, imágenes.
 app.use(express.static(path.join(__dirname, "../public")));
@@ -110,6 +112,14 @@ app.get("/admin.html", (_req, res) => {
   res.redirect("/admin");
 });
 
+app.get("/casting.html", (_req, res) => {
+  res.redirect("/casting");
+});
+
+app.get("/admin/casting.html", (_req, res) => {
+  res.redirect("/admin/casting");
+});
+
 // Rutas limpias.
 app.get("/", (_req, res) => {
   res.sendFile(path.join(__dirname, "/vote"));
@@ -119,8 +129,16 @@ app.get("/vote", (_req, res) => {
   res.sendFile(path.join(__dirname, "../public/vote.html"));
 });
 
+app.get("/casting", (_req, res) => {
+  res.sendFile(path.join(__dirname, "../public/casting.html"));
+});
+
 app.get("/admin", (_req, res) => {
   res.sendFile(path.join(__dirname, "../public/admin.html"));
+});
+
+app.get("/admin/casting", (_req, res) => {
+  res.sendFile(path.join(__dirname, "../public/admin-casting.html"));
 });
 
 app.get("/health", (_req, res) => {
