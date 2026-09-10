@@ -26,7 +26,6 @@ async function tableExists(client, tableName) {
     ) AS "exists"`,
     [tableName]
   );
-
   return Boolean(result.rows[0]?.exists);
 }
 
@@ -41,27 +40,19 @@ async function columnExists(client, tableName, columnName) {
     ) AS "exists"`,
     [tableName, columnName]
   );
-
   return Boolean(result.rows[0]?.exists);
 }
 
 async function ensureCastingSchema(client) {
-  const hasUserTable = await tableExists(client, "User");
-  if (!hasUserTable) {
+  if (!(await tableExists(client, "User"))) {
     throw new Error('No existe la tabla "User" después de aplicar migraciones.');
   }
 
-  const robloxColumns = [
-    ["robloxId", "TEXT"],
-    ["robloxUsername", "TEXT"],
-    ["robloxDisplayName", "TEXT"],
-    ["robloxAvatar", "TEXT"],
-  ];
-
-  for (const [columnName, sqlType] of robloxColumns) {
+  const robloxColumns = ["robloxId", "robloxUsername", "robloxDisplayName", "robloxAvatar"];
+  for (const columnName of robloxColumns) {
     if (!(await columnExists(client, "User", columnName))) {
       console.warn(`Schema drift detectado: agregando User.${columnName}...`);
-      await client.query(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "${columnName}" ${sqlType}`);
+      await client.query(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "${columnName}" TEXT`);
     }
   }
 
@@ -70,6 +61,9 @@ async function ensureCastingSchema(client) {
     BEGIN
       IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'CastingStatus') THEN
         CREATE TYPE "CastingStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'CastingClassification') THEN
+        CREATE TYPE "CastingClassification" AS ENUM ('NONE', 'FAVORITE', 'REVIEW_AGAIN');
       END IF;
     END
     $$;
@@ -82,10 +76,13 @@ async function ensureCastingSchema(client) {
         "id" TEXT NOT NULL,
         "userId" TEXT NOT NULL,
         "status" "CastingStatus" NOT NULL DEFAULT 'PENDING',
+        "classification" "CastingClassification" NOT NULL DEFAULT 'NONE',
         "internalNotes" TEXT NOT NULL DEFAULT '',
         "answers" JSONB NOT NULL,
         "submittedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "reviewedAt" TIMESTAMP(3),
+        "lastReviewedByUserId" TEXT,
+        "lastReviewedByName" TEXT,
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP(3) NOT NULL,
         CONSTRAINT "CastingApplication_pkey" PRIMARY KEY ("id"),
@@ -94,15 +91,51 @@ async function ensureCastingSchema(client) {
           ON DELETE CASCADE ON UPDATE CASCADE
       )
     `);
+  } else {
+    if (!(await columnExists(client, "CastingApplication", "classification"))) {
+      await client.query(`ALTER TABLE "CastingApplication" ADD COLUMN "classification" "CastingClassification" NOT NULL DEFAULT 'NONE'`);
+    }
+    if (!(await columnExists(client, "CastingApplication", "lastReviewedByUserId"))) {
+      await client.query(`ALTER TABLE "CastingApplication" ADD COLUMN "lastReviewedByUserId" TEXT`);
+    }
+    if (!(await columnExists(client, "CastingApplication", "lastReviewedByName"))) {
+      await client.query(`ALTER TABLE "CastingApplication" ADD COLUMN "lastReviewedByName" TEXT`);
+    }
+  }
+
+  if (!(await tableExists(client, "CastingReviewEvent"))) {
+    console.warn('Schema drift detectado: creando tabla "CastingReviewEvent"...');
+    await client.query(`
+      CREATE TABLE "CastingReviewEvent" (
+        "id" TEXT NOT NULL,
+        "applicationId" TEXT NOT NULL,
+        "reviewerUserId" TEXT NOT NULL,
+        "reviewerName" TEXT NOT NULL,
+        "action" TEXT NOT NULL,
+        "fromValue" TEXT,
+        "toValue" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "CastingReviewEvent_pkey" PRIMARY KEY ("id"),
+        CONSTRAINT "CastingReviewEvent_applicationId_fkey"
+          FOREIGN KEY ("applicationId") REFERENCES "CastingApplication"("id")
+          ON DELETE CASCADE ON UPDATE CASCADE
+      )
+    `);
   }
 
   await client.query('CREATE UNIQUE INDEX IF NOT EXISTS "User_robloxId_key" ON "User"("robloxId")');
   await client.query('CREATE UNIQUE INDEX IF NOT EXISTS "CastingApplication_userId_key" ON "CastingApplication"("userId")');
   await client.query('CREATE INDEX IF NOT EXISTS "CastingApplication_status_idx" ON "CastingApplication"("status")');
+  await client.query('CREATE INDEX IF NOT EXISTS "CastingApplication_classification_idx" ON "CastingApplication"("classification")');
   await client.query('CREATE INDEX IF NOT EXISTS "CastingApplication_submittedAt_idx" ON "CastingApplication"("submittedAt")');
+  await client.query('CREATE INDEX IF NOT EXISTS "CastingReviewEvent_applicationId_createdAt_idx" ON "CastingReviewEvent"("applicationId", "createdAt")');
 
   const checks = {
     castingTable: await tableExists(client, "CastingApplication"),
+    auditTable: await tableExists(client, "CastingReviewEvent"),
+    classification: await columnExists(client, "CastingApplication", "classification"),
+    lastReviewedByUserId: await columnExists(client, "CastingApplication", "lastReviewedByUserId"),
+    lastReviewedByName: await columnExists(client, "CastingApplication", "lastReviewedByName"),
     robloxId: await columnExists(client, "User", "robloxId"),
     robloxUsername: await columnExists(client, "User", "robloxUsername"),
     robloxDisplayName: await columnExists(client, "User", "robloxDisplayName"),
@@ -113,13 +146,11 @@ async function ensureCastingSchema(client) {
     throw new Error(`El schema de casting sigue incompleto: ${JSON.stringify(checks)}`);
   }
 
-  console.log("Schema de casting verificado correctamente.");
+  console.log("Schema de casting y revisión verificado correctamente.");
 }
 
 async function main() {
-  if (!process.env.DATABASE_URL) {
-    throw new Error("DATABASE_URL no está configurada.");
-  }
+  if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL no está configurada.");
 
   const connectionOptions = {
     connectionString: process.env.DATABASE_URL,
@@ -146,9 +177,7 @@ async function main() {
       await client.end();
     }
   } catch (error) {
-    if (!client.ended) {
-      await client.end().catch(() => {});
-    }
+    await client.end().catch(() => {});
     throw error;
   }
 
