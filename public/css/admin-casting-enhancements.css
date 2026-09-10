@@ -1,3 +1,5 @@
+[hidden] { display: none !important; }
+
 .expanded-toolbar {
   grid-template-columns: minmax(260px, 1.4fr) 170px 210px 170px auto;
 }
