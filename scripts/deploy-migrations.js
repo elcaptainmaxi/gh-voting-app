@@ -123,16 +123,35 @@ async function ensureCastingSchema(client) {
     `);
   }
 
+  if (!(await tableExists(client, "CastingBotQueueEvent"))) {
+    console.warn('Schema drift detectado: creando tabla "CastingBotQueueEvent"...');
+    await client.query(`
+      CREATE TABLE "CastingBotQueueEvent" (
+        "id" TEXT NOT NULL,
+        "applicationId" TEXT NOT NULL,
+        "queuedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "queuedBy" TEXT,
+        CONSTRAINT "CastingBotQueueEvent_pkey" PRIMARY KEY ("id"),
+        CONSTRAINT "CastingBotQueueEvent_applicationId_fkey"
+          FOREIGN KEY ("applicationId") REFERENCES "CastingApplication"("id")
+          ON DELETE CASCADE ON UPDATE CASCADE
+      )
+    `);
+  }
+
   await client.query('CREATE UNIQUE INDEX IF NOT EXISTS "User_robloxId_key" ON "User"("robloxId")');
   await client.query('CREATE UNIQUE INDEX IF NOT EXISTS "CastingApplication_userId_key" ON "CastingApplication"("userId")');
   await client.query('CREATE INDEX IF NOT EXISTS "CastingApplication_status_idx" ON "CastingApplication"("status")');
   await client.query('CREATE INDEX IF NOT EXISTS "CastingApplication_classification_idx" ON "CastingApplication"("classification")');
   await client.query('CREATE INDEX IF NOT EXISTS "CastingApplication_submittedAt_idx" ON "CastingApplication"("submittedAt")');
   await client.query('CREATE INDEX IF NOT EXISTS "CastingReviewEvent_applicationId_createdAt_idx" ON "CastingReviewEvent"("applicationId", "createdAt")');
+  await client.query('CREATE INDEX IF NOT EXISTS "CastingBotQueueEvent_queuedAt_idx" ON "CastingBotQueueEvent"("queuedAt")');
+  await client.query('CREATE INDEX IF NOT EXISTS "CastingBotQueueEvent_applicationId_queuedAt_idx" ON "CastingBotQueueEvent"("applicationId", "queuedAt")');
 
   const checks = {
     castingTable: await tableExists(client, "CastingApplication"),
     auditTable: await tableExists(client, "CastingReviewEvent"),
+    botQueueTable: await tableExists(client, "CastingBotQueueEvent"),
     classification: await columnExists(client, "CastingApplication", "classification"),
     lastReviewedByUserId: await columnExists(client, "CastingApplication", "lastReviewedByUserId"),
     lastReviewedByName: await columnExists(client, "CastingApplication", "lastReviewedByName"),
@@ -146,7 +165,7 @@ async function ensureCastingSchema(client) {
     throw new Error(`El schema de casting sigue incompleto: ${JSON.stringify(checks)}`);
   }
 
-  console.log("Schema de casting y revisión verificado correctamente.");
+  console.log("Schema de casting, revisión e integración del bot verificado correctamente.");
 }
 
 async function main() {
