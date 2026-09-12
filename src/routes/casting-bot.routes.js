@@ -44,19 +44,15 @@ router.get("/integrations/casting/applications", requireBotApiKey, async (req, r
       select: {
         id: true,
         status: true,
-        classification: true,
         submittedAt: true,
-        answers: true,
         user: {
           select: {
             discordId: true,
             username: true,
             globalName: true,
-            avatar: true,
             robloxId: true,
             robloxUsername: true,
             robloxDisplayName: true,
-            robloxAvatar: true,
           },
         },
       },
