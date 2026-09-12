@@ -44,6 +44,24 @@
   background: rgba(183, 200, 255, .07);
 }
 
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.send-bot-button {
+  border-color: rgba(106, 195, 255, .28);
+  color: #b9def8;
+  background: rgba(106, 195, 255, .07);
+}
+
+.send-bot-button:disabled {
+  opacity: .62;
+  cursor: wait;
+}
+
 .copy-row {
   display: flex;
   align-items: center;
@@ -186,6 +204,10 @@
   }
   .expanded-toolbar .search-box {
     grid-column: auto;
+  }
+  .row-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
   .card-soft {
     grid-template-columns: 1fr;
