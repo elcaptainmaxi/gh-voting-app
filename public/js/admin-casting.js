@@ -109,7 +109,7 @@ function renderRows() {
       <td>${escapeHtml(formatDate(application.submittedAt))}</td>
       <td><span class="status ${application.status}">${statusLabel(application.status)}</span></td>
       <td><span class="classification-badge ${application.classification}">${classificationLabel(application.classification)}</span></td>
-      <td><button class="open-button" type="button" data-open="${application.id}">Abrir</button></td>
+      <td><div class="row-actions"><button class="open-button" type="button" data-open="${application.id}">Abrir</button><button class="open-button send-bot-button" type="button" data-send-bot="${application.id}">Enviar al bot</button></div></td>
     </tr>`;
   }).join("");
 
@@ -218,6 +218,37 @@ async function openApplication(id) {
     if (!response.ok) throw new Error(data.error || "No se pudo abrir la postulación.");
     renderDetail(data.application);
   } catch (error) {
+    panelMessage.textContent = error.message;
+    panelMessage.className = "panel-message error";
+    panelMessage.hidden = false;
+  }
+}
+
+async function sendApplicationToBot(id, button) {
+  if (!id || !button) return;
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "Enviando...";
+
+  try {
+    const response = await fetch(`/api/admin/casting/applications/${encodeURIComponent(id)}/send-to-bot`, {
+      method: "POST",
+      headers: { "x-csrf-token": csrfToken },
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "No se pudo enviar la postulación al bot.");
+
+    button.textContent = "Enviada";
+    panelMessage.textContent = "Postulación agregada a la API del bot. Se publicará cuando el bot haga su próxima consulta.";
+    panelMessage.className = "panel-message";
+    panelMessage.hidden = false;
+    setTimeout(() => {
+      button.textContent = originalText;
+      button.disabled = false;
+    }, 1800);
+  } catch (error) {
+    button.textContent = originalText;
+    button.disabled = false;
     panelMessage.textContent = error.message;
     panelMessage.className = "panel-message error";
     panelMessage.hidden = false;
@@ -343,6 +374,13 @@ body.addEventListener("click", (event) => {
   if (copy) {
     event.stopPropagation();
     copyText(copy.dataset.copy, copy);
+    return;
+  }
+
+  const sendButton = event.target.closest("[data-send-bot]");
+  if (sendButton) {
+    event.stopPropagation();
+    sendApplicationToBot(sendButton.dataset.sendBot, sendButton);
     return;
   }
 
