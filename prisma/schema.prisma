@@ -130,6 +130,7 @@ model CastingApplication {
   updatedAt            DateTime              @updatedAt
   user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   reviewEvents         CastingReviewEvent[]
+  botQueueEvents       CastingBotQueueEvent[]
 
   @@index([status])
   @@index([classification])
@@ -148,4 +149,15 @@ model CastingReviewEvent {
   application    CastingApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
   @@index([applicationId, createdAt])
+}
+
+model CastingBotQueueEvent {
+  id            String   @id @default(cuid())
+  applicationId String
+  queuedAt      DateTime @default(now())
+  queuedBy      String?
+  application   CastingApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([queuedAt])
+  @@index([applicationId, queuedAt])
 }
