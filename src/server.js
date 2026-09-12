@@ -127,6 +127,11 @@ app.get("/admin/casting.html", requireAdminPage, (_req, res) => {
   res.redirect("/admin/casting");
 });
 
+// Verificación de dominio solicitada por Discord.
+app.get("/.well-known/discord", (_req, res) => {
+  res.type("text/plain").send("dh=c985e5bf0ab384a2cadac06bec465650fc319944");
+});
+
 // Archivos estáticos: CSS, JS, assets, imágenes.
 app.use(express.static(path.join(__dirname, "../public")));
 
