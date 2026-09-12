@@ -12,6 +12,7 @@ import { fileURLToPath } from "url";
 import authRoutes from "./routes/auth.routes.js";
 import apiRoutes from "./routes/api.routes.js";
 import castingRoutes from "./routes/casting.routes.js";
+import castingBotRoutes from "./routes/casting-bot.routes.js";
 import { env, isProduction } from "./config/env.js";
 import { globalLimiter } from "./middleware/rateLimiters.js";
 import { requireAuth } from "./middleware/auth.js";
@@ -100,6 +101,7 @@ app.use(
 app.use("/auth", authRoutes);
 app.use("/api", apiRoutes);
 app.use("/api", castingRoutes);
+app.use("/api", castingBotRoutes);
 
 function requireAdminPage(req, res, next) {
   if (!req.session?.userId) {
