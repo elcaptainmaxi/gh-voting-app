@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Producción · Conteo TikTok</title>
+<link rel="stylesheet" href="/css/styles.css">
+<style>
+.tiktok-wrap{max-width:1150px;margin:32px auto;padding:0 20px 50px}.tiktok-wrap h1{margin:10px 0}.tiktok-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}.tiktok-card{background:var(--card-bg,#181b27);border:1px solid #5555;border-radius:18px;padding:22px;margin:18px 0}.tiktok-card textarea{width:100%;min-height:170px;font:inherit;padding:12px}.tiktok-card input[type=file]{display:block;width:100%;padding:15px;border:1px dashed #888;border-radius:12px}.tiktok-card label{display:block;margin:10px 0}.tiktok-results{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}.tiktok-stat{padding:18px;border-radius:14px;background:#8882}.tiktok-stat strong{display:block;font-size:28px}.tiktok-table-wrap{overflow:auto;max-height:440px}.tiktok-table{border-collapse:collapse;width:100%;font-size:14px}.tiktok-table th,.tiktok-table td{padding:10px;text-align:left;border-bottom:1px solid #8885;vertical-align:top}.tiktok-table td{overflow-wrap:anywhere;max-width:380px}.tiktok-card button{cursor:pointer}.tiktok-error{color:#ff9292}.tiktok-muted{opacity:.75}.tiktok-card[hidden], [hidden]{display:none!important}
+</style>
+</head>
+<body class="app-body">
+<header class="topbar"><div class="brand">GH Voting · Producción</div><div class="topbar-right"><a class="topbar-link" href="/admin">Volver al panel</a></div></header>
+<main class="tiktok-wrap" id="tiktokApp" hidden>
+<span class="badge">Herramienta de producción</span><h1>Conteo de votos de TikTok</h1><p class="tiktok-muted">Importá comentarios y contá votos «nombre al 9009». El procesamiento ocurre en este navegador; no se guardan votos en la base de datos ni se mezclan con las placas.</p>
+<section class="tiktok-card"><h2>1. Configuración</h2><label for="candidates">Participantes y variantes (un participante por línea, nombre: variante, variante)</label><textarea id="candidates" spellcheck="false">Hugo: hugo, hugoo, hugooo, huego
+Tomás: tomas, tomás, tomaz, tomass
+Roma: roma, romaa, romma
+Xeli: xeli, xelii, xely, xelly, xelli, xexi</textarea><label><input type="checkbox" id="strict"> Contar nombres únicamente antes de 9009</label><label for="commentsFile">Archivo de comentarios CSV (también CSV exportado desde Excel)</label><input type="file" id="commentsFile" accept=".csv,.tsv,text/csv,text/tab-separated-values"><p class="tiktok-muted" id="fileLabel">No hay archivo seleccionado.</p><button class="btn btn-primary" id="countBtn" type="button">Contabilizar votos</button><p id="countMessage" role="status"></p></section>
+<section id="report" hidden><div class="tiktok-results" id="stats"></div><section class="tiktok-card"><h2>Resultados por participante</h2><div class="tiktok-table-wrap" id="resultsTable"></div></section><section class="tiktok-card"><h2>Comentarios validados</h2><button class="btn btn-secondary" id="validCsv" type="button">Descargar CSV</button><div class="tiktok-table-wrap" id="validTable"></div></section><section class="tiktok-card"><h2>Comentarios no validados</h2><button class="btn btn-secondary" id="invalidCsv" type="button">Descargar CSV</button><div class="tiktok-table-wrap" id="invalidTable"></div></section><section class="tiktok-card"><h2>Usuarios con varios comentarios</h2><button class="btn btn-secondary" id="multipleCsv" type="button">Descargar CSV</button><div class="tiktok-table-wrap" id="multipleTable"></div></section></section>
+</main><p id="accessMessage" class="tiktok-wrap" role="status">Verificando acceso de producción…</p>
+<script src="/js/conteo-tiktok.js" defer></script>
+</body></html>
