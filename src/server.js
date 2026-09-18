@@ -12,9 +12,12 @@ import { fileURLToPath } from "url";
 
 import authRoutes from "./routes/auth.routes.js";
 import apiRoutes from "./routes/api.routes.js";
-import { requireAuth, requireAdmin } from "./middleware/auth.js";
+import castingRoutes from "./routes/casting.routes.js";
+import castingBotRoutes from "./routes/casting-bot.routes.js";
+import castingBotAdminRoutes from "./routes/casting-bot-admin.routes.js";
 import { env, isProduction } from "./config/env.js";
 import { globalLimiter } from "./middleware/rateLimiters.js";
+import { requireAuth, requireAdmin } from "./middleware/auth.js";
 
 const uploadsDir = process.env.UPLOAD_DIR || "/app/uploads";
 const __filename = fileURLToPath(import.meta.url);
@@ -56,20 +59,39 @@ app.use(session({
   proxy: true,
   cookie: { httpOnly: true, secure: isProduction, sameSite: "lax", maxAge: 1000 * 60 * 60 * 24 * 7 },
 }));
+
 app.use("/auth", authRoutes);
 app.use("/api", apiRoutes);
+app.use("/api", castingRoutes);
+app.use("/api", castingBotRoutes);
+app.use("/api", castingBotAdminRoutes);
 
-// Protect the production counter before exposing the rest of the public directory.
+function requireAdminPage(req, res, next) {
+  if (!req.session?.userId) return res.redirect("/auth/login?returnTo=%2Fadmin%2Fcasting");
+  return requireAuth(req, res, () => {
+    if (!req.user?.isAdmin) return res.redirect("/");
+    next();
+  });
+}
+
+app.get("/admin/casting", requireAdminPage, (_req, res) => {
+  res.sendFile(path.join(__dirname, "../public/admin-casting.html"));
+});
+app.get(["/admin-casting.html", "/admin/casting.html"], requireAdminPage, (_req, res) => res.redirect("/admin/casting"));
 app.get(["/conteo-tiktok", "/conteo-tiktok.html"], requireAuth, requireAdmin, (_req, res) => {
   res.sendFile(path.join(__dirname, "../public/conteo-tiktok.html"));
 });
-app.use(express.static(path.join(__dirname, "../public")));
+app.get("/.well-known/discord", (_req, res) => {
+  res.type("text/plain").send("dh=c985e5bf0ab384a2cadac06bec465650fc319944");
+});
 
+app.use(express.static(path.join(__dirname, "../public")));
 app.get("/vote.html", (_req, res) => res.redirect("/vote"));
 app.get("/admin.html", (_req, res) => res.redirect("/admin"));
-app.get("/", (_req, res) => res.sendFile(path.join(__dirname, "../public/vote.html")));
+app.get("/casting.html", (_req, res) => res.redirect("/casting"));
+app.get("/", (_req, res) => res.sendFile(path.join(__dirname, "/vote")));
 app.get("/vote", (_req, res) => res.sendFile(path.join(__dirname, "../public/vote.html")));
-
+app.get("/casting", (_req, res) => res.sendFile(path.join(__dirname, "../public/casting.html")));
 app.get("/admin", async (_req, res, next) => {
   try {
     const html = await readFile(path.join(__dirname, "../public/admin.html"), "utf8");

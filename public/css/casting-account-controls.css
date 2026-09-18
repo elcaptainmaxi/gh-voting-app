@@ -1,0 +1,38 @@
+.account-action {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: .74rem;
+  font-weight: 800;
+  background: transparent;
+  color: var(--text);
+}
+
+.account-action:hover {
+  transform: translateY(-1px);
+}
+
+.account-action:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.account-action.secondary-action {
+  color: #c7d2da;
+}
+
+.account-action.danger-action {
+  color: #f3a1a8;
+  border-color: rgba(228, 111, 120, .38);
+  background: rgba(228, 111, 120, .06);
+}
+
+@media (max-width: 720px) {
+  .account-action {
+    align-self: stretch;
+  }
+}

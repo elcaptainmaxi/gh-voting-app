@@ -1,4 +1,7 @@
-import { PrismaClient } from "@prisma/client";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+const { PrismaClient } = require("../generated/prisma");
 
 const globalForPrisma = globalThis;
 

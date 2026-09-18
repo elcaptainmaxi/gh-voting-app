@@ -1,0 +1,98 @@
+.draft-status {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: .72rem;
+  text-align: right;
+}
+
+.required-mark {
+  color: #ef9097;
+}
+
+.answer-counter {
+  color: var(--muted);
+  font-size: .75rem;
+  text-align: right;
+  transition: color .15s ease;
+}
+
+.answer-counter.complete {
+  color: var(--accent);
+}
+
+.field-error {
+  margin: -2px 0 0;
+  color: #ffb4ba;
+  font-size: .78rem;
+  line-height: 1.4;
+}
+
+.section-dot.incomplete {
+  background: #29323a;
+}
+
+.review-group {
+  display: grid;
+  gap: 14px;
+  padding: 20px 0 28px;
+  border-bottom: 1px solid var(--line);
+}
+
+.review-group:first-child {
+  padding-top: 0;
+}
+
+.review-group:last-child {
+  border-bottom: 0;
+}
+
+.review-group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.review-group-heading span {
+  color: var(--accent);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.review-group-heading h3 {
+  margin: 3px 0 0;
+  font-size: 1.25rem;
+}
+
+.review-answer {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #0a1016;
+}
+
+.review-answer h4 {
+  margin: 0 0 8px;
+  font-size: .86rem;
+  line-height: 1.45;
+}
+
+.review-answer h4 span {
+  margin-right: 5px;
+  color: var(--accent);
+}
+
+.review-answer p {
+  margin: 0;
+  color: #c7d0d7;
+  white-space: pre-wrap;
+  line-height: 1.55;
+  font-size: .84rem;
+}
+
+@media (max-width: 720px) {
+  .draft-status { text-align: left; }
+  .review-group-heading { align-items: flex-start; }
+}
