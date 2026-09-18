@@ -59,7 +59,7 @@ app.use(session({
 app.use("/auth", authRoutes);
 app.use("/api", apiRoutes);
 
-// Proteger el HTML de producción antes de registrar los archivos estáticos.
+// Protect the production counter before exposing the rest of the public directory.
 app.get(["/conteo-tiktok", "/conteo-tiktok.html"], requireAuth, requireAdmin, (_req, res) => {
   res.sendFile(path.join(__dirname, "../public/conteo-tiktok.html"));
 });
@@ -67,15 +67,14 @@ app.use(express.static(path.join(__dirname, "../public")));
 
 app.get("/vote.html", (_req, res) => res.redirect("/vote"));
 app.get("/admin.html", (_req, res) => res.redirect("/admin"));
-app.get("/", (_req, res) => res.sendFile(path.join(__dirname, "/vote")));
+app.get("/", (_req, res) => res.sendFile(path.join(__dirname, "../public/vote.html")));
 app.get("/vote", (_req, res) => res.sendFile(path.join(__dirname, "../public/vote.html")));
 
-// Mantener el panel existente intacto y sumar un acceso visible a la nueva sección.
 app.get("/admin", async (_req, res, next) => {
   try {
     const html = await readFile(path.join(__dirname, "../public/admin.html"), "utf8");
     const link = '<a class="admin-nav-btn" href="/conteo-tiktok" style="display:block;text-decoration:none">Conteo TikTok</a>';
-    res.type("html").send(html.replace('</aside>', `${link}\n    </aside>`));
+    res.type("html").send(html.replace("</aside>", `${link}\n    </aside>`));
   } catch (error) { next(error); }
 });
 app.get("/health", (_req, res) => res.json({ ok: true }));
